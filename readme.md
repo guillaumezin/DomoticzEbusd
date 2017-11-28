@@ -1,6 +1,6 @@
 # ebusd plugin for Domoticz
 
-This is a plugin for [Domoticz](https://domoticz.com), for Domoticz to communicate directly with [ebusd](https://github.com/john30/ebusd) daemon. Ebus is a protocol to communicate mainly with Vaillant, Saunier-Duval
+This is a plugin for [Domoticz](https://domoticz.com), for Domoticz to communicate directly with [ebusd](https://github.com/john30/ebusd) daemon. Ebus is a protocol to communicate mainly with Vaillant and Saunier-Duval boilers.
 
 ## Warning
 
@@ -9,7 +9,7 @@ This is a hobby project, use it if you know what you are doing and at your own r
 ## Prerequisites
 
 You need to have [ebusd](https://github.com/john30/ebusd) daemon installed, maybe you can install a package directly from [releases](https://github.com/john30/ebusd/releases), and you need to install it with its [configuration files](https://github.com/john30/ebusd-configuration), accessible from network to Domoticz and obviously, a [hardware supported by ebusd](https://github.com/john30/ebusd/wiki/6.-Hardware).
-The plugin has been tested with ebusd version 3.0.595c7c0
+The plugin has been tested with ebusd version 3.0.595c7c0 and a Vaillant ecoTEC plus VUI FR 306/5-5 R5 boiler with a calorMATIC VRC470f wireless remote control and VR61/4 underfloor heating system kit.
 Check first that ebusd is working properly with the following command directly on the device hosting ebusd:
 ```
 ebusctl find
@@ -21,6 +21,7 @@ telnet 192.168.0.10 8888
 find
 quit
 ```
+You should get the same list as the previous command.
 
 I advise to limit telnet access on you ebusd hosting device to the device hosting Domoticz, for instance, I added the following to my "/etc/rc.local":
 ```
@@ -29,7 +30,6 @@ iptables -A INPUT -p tcp ! -s 192.168.0.11 --dport 8888 -j DROP
 ```
 Change IP address to Domoticz hosting device IP address, change port to your telnet port number if different. 
 
-You should get the same list as the previous command.
 For the plugin to work, ebusd must be started with HTTP JSON --httpport option, for instance on port 8889. I had to change my "/etc/default/ebusd" after installing the .deb package for raspberry pi:
 
 ```
@@ -40,12 +40,12 @@ For the plugin to work, ebusd must be started with HTTP JSON --httpport option, 
 EBUSD_OPTS="--scanconfig --httpport 8889"
 ```
 
-Then I had to restart the daemon:
+Then restart the daemon:
 ```
 sudo service ebusd restart
 ```
 
-Then I can open and see available registers from your favorite internet browser, for instance at this address: [http://192.168.0.10:8889/data&def](http://192.168.0.10:8889/data&def) (change IP address to ebusd hosting device IP address or name, change 8889 port to whatever port you configured for HTTP JSON):
+Then you can open and see available registers from your favorite internet browser, for instance at this address: [http://192.168.0.10:8889/data?def](http://192.168.0.10:8889/data?def) (change IP address to ebusd hosting device IP address or name, change 8889 port to whatever port you configured for HTTP JSON):
 ```
 {
  "bai": {
@@ -88,7 +88,7 @@ Then I can open and see available registers from your favorite internet browser,
 
 ## Installing
 
-Copy the plugin.py to domoticz directory/plugins/ebusd or change directory to domoticz directory/plugins and issue the following command:
+Copy the plugin.py to domoticz directory/plugins/DomoticzEbusd or change directory to domoticz directory/plugins and issue the following command:
 
 ```
 git clone https://github.com/guillaumezin/DomoticzEbusd
@@ -106,7 +106,7 @@ Add the ebusd-bridge hardware in Domoticz hardware configuration tab, giving the
 ```
 f47:LanguageVariant f47:OutsideTemp mc:TempDesiredLow:0
 ```
-The first part of a register is the circuit name (first level of JSON data), the second part must be a message name (third level of JSON data), and the third part is the field number, found in fielddefs of a message in JSON data, and is optionnal (field 0 by default). To see available registers, open your favorite internet browser, for instance at this address: [http://192.168.0.10:8889/data&def](http://192.168.0.10:8889/data&def) (change IP address to ebusd hosting device IP address or name, change 8889 port to whatever port you configured for HTTP JSON):
+The first part of a register is the circuit name (first level of JSON data), the second part must be a message name (third level of JSON data), and the third part is the index of field in fielddefs of a message in JSON data, and is optional (field index 0 by default). To see available registers, open your favorite internet browser, for instance at this address: [http://192.168.0.10:8889/data?def](http://192.168.0.10:8889/data?def) (change IP address to ebusd hosting device IP address or name, change 8889 port to whatever port you configured for HTTP JSON):
 ```
 You can add more than one ebusd-bridge hardware to Domoticz, for instance to get some registers as read-only and others as writable
 
