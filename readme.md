@@ -99,6 +99,11 @@ To update, overwrite plugin.py or change directory to domoticz directory/plugins
 git pull
 ```
 
+Give the execution permission, for Linux:
+```
+chmod ugo+x plugin.py
+```
+
 Restart Domoticz.
 
 ## Configuration
