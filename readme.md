@@ -123,7 +123,7 @@ See also the list of [contributors](https://github.com/guillaumezin/DomoticzEbus
 
 ## License
 
-This project is licensed under the MIT license.
+This project is licensed under the MIT license - see the [LICENSE](LICENSE) file for details
 
 ## Acknowledgments
 
