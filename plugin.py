@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.0.1" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.0.0" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default=""/> -->
@@ -332,14 +332,14 @@ class BasePlugin:
                                 #Domoticz.Error("Register " + sCircuit + "-" + sMessage + " has " + str(flen) + " fields and is writable, more than one field and writable isn't supported yet, the register will be read only")
                                 #bWritable = False
                             dFields = dMessage['fielddefs'][iFieldIndex]
+                            # https://github.com/domoticz/domoticz/blob/master/hardware/hardwaretypes.h ligne 42
+                            # https://github.com/domoticz/domoticz/blob/master/hardware/plugins/PythonObjects.cpp ligne 410
                             sTypeName = ""
                             dValues = None
                             dOptions = {}
                             dOptionsMapping = {}
                             dReverseOptionsMapping = {}
                             # now we try to get the best match between domoticz sensor and ebusd field type
-                            # https://github.com/domoticz/domoticz/blob/master/hardware/hardwaretypes.h ligne 42
-                            # https://github.com/domoticz/domoticz/blob/master/hardware/plugins/PythonObjects.cpp ligne 410
                             sFieldType = getFieldType(dFields["unit"], dFields["name"], dFields["type"])
                             # yes/no type
                             if (sFieldType == "switch") and bWritable:
@@ -364,7 +364,7 @@ class BasePlugin:
                             # number type, probably to improve
                             elif (sFieldType == "number") and bWritable:
                                 sTypeName = "Custom"
-                                dOptions = { "Custom": "1;" + str(dFields["unit"])}
+                                dOptions = { "Custom", "1;" + str(dFields["unit"])}
                             # setpoint type
                             elif (sFieldType == "temperature") and bWritable:
                                 iMainType = 0xF2
@@ -779,7 +779,7 @@ def valueDomoticzToEbusd(dUnit, sCommand, iLevel):
 # convert ebus sFieldValue (string) to integer, string values for domoticz, for dUnit (dictionnary)
 def valueEbusdToDomoticz(dUnit, sFieldValue):
     iValue = 0
-    sValue = sFieldValue
+    sValue = ""
     dOptionsMapping = dUnit["options"]
     if len(dOptionsMapping) > 0:
         if sFieldValue in dOptionsMapping:
