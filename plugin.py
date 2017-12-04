@@ -293,6 +293,7 @@ class BasePlugin:
                 # if it seems incorrect
                 if ((len(sPath)) < 2) or ((len(sPath)) > 3):
                     Domoticz.Error("register definition of " + sDeviceID + " is not correct, it must be for instance f47:Hc1DayTemp or f47:Hc1DayTemp:0")
+                    self.dUnits[sDeviceID] = "length error"
                 else:
                     sCircuit = sPath[0]
                     sMessage = sPath[1]
@@ -309,6 +310,7 @@ class BasePlugin:
                             iFieldIndex = int(sFieldIndex)
                         except ValueError:
                             Domoticz.Error("Field number of device " + sDeviceID + " is not set correctly")
+                            self.dUnits[sDeviceID] = "field number error"
                             continue
                     # look for circuit/message in JSON, if not found, we will rescan later in case register not yet available on ebus messaging system
                     Domoticz.Debug("Look for field number " + sFieldIndex + " in JSON data")
@@ -332,14 +334,14 @@ class BasePlugin:
                                 #Domoticz.Error("Register " + sCircuit + "-" + sMessage + " has " + str(flen) + " fields and is writable, more than one field and writable isn't supported yet, the register will be read only")
                                 #bWritable = False
                             dFields = dMessage['fielddefs'][iFieldIndex]
+                            # https://github.com/domoticz/domoticz/blob/master/hardware/hardwaretypes.h ligne 42
+                            # https://github.com/domoticz/domoticz/blob/master/hardware/plugins/PythonObjects.cpp ligne 410
                             sTypeName = ""
                             dValues = None
                             dOptions = {}
                             dOptionsMapping = {}
                             dReverseOptionsMapping = {}
                             # now we try to get the best match between domoticz sensor and ebusd field type
-                            # https://github.com/domoticz/domoticz/blob/master/hardware/hardwaretypes.h ligne 42
-                            # https://github.com/domoticz/domoticz/blob/master/hardware/plugins/PythonObjects.cpp ligne 410
                             sFieldType = getFieldType(dFields["unit"], dFields["name"], dFields["type"])
                             # yes/no type
                             if (sFieldType == "switch") and bWritable:
@@ -364,7 +366,7 @@ class BasePlugin:
                             # number type, probably to improve
                             elif (sFieldType == "number") and bWritable:
                                 sTypeName = "Custom"
-                                dOptions = { "Custom": "1;" + str(dFields["unit"])}
+                                dOptions = { "Custom", "1;" + str(dFields["unit"])}
                             # setpoint type
                             elif (sFieldType == "temperature") and bWritable:
                                 iMainType = 0xF2
@@ -405,6 +407,7 @@ class BasePlugin:
                                         Domoticz.Device(Name=sMessage,  Unit=iIndexUnit, Type=iMainType, Subtype=iSubtype, Options=dOptions, Used=1, DeviceID=sDeviceID).Create()
                                 else:
                                     Domoticz.Error("Too many devices, " + sDeviceID + " cannot be added")
+                                    self.dUnits[sDeviceID] = "too many devices"
                                     break
                             
                             # incorporate found or created device to local self.dUnits dictionnary, to keep additionnal parameters used by the plugin
@@ -413,6 +416,7 @@ class BasePlugin:
                             self.read(iIndexUnit)
                         else:
                             Domoticz.Error("device " + sDeviceID + " has no field " + sFieldIndex)
+                            self.dUnits[sDeviceID] = "incorrect field"
                     else:
                         # we will rescan later in case register not yet available on ebus messaging system
                         Domoticz.Log("Device " + sDeviceID + " not found, will try again later")
@@ -598,7 +602,7 @@ class BasePlugin:
                         #self.telnetConn.Send("read -c " + dUnit["circuit"] + " " + dUnit["name"] + " " + dUnit["fieldname"] + "." + str(dUnit["fieldindex"]) + "\r\n")
                         # telnet read command in verbose mode
                         sRead = "read -v -c " + dUnit["circuit"] + " " + dUnit["name"] + "\r\n"
-                        Domoticz.Debug("Telnet write:" + sRead)
+                        Domoticz.Debug("Telnet write: " + sRead)
                         self.telnetConn.Send(sRead)
                     # write command
                     elif self.sCurrentCommand == "write":
@@ -618,14 +622,14 @@ class BasePlugin:
                                     sData = ";".join(lData)
                                     # telnet write command
                                     sWrite = "write -c " + dUnit["circuit"] + " " + dUnit["name"] + " " + sData + "\r\n"
-                                    Domoticz.Debug("Telnet write:" + sWrite)
+                                    Domoticz.Debug("Telnet write: " + sWrite)
                                     self.telnetConn.Send(sWrite)
                             else:
                                 Domoticz.Error("Data cached is too old or inexistent, won't take the risk to modify many fields at once")
                         else:
                             # telnet write command if only one field in message
                             sWrite = "write -c " + dUnit["circuit"] + " " + dUnit["name"] + " " + sCommand["value"] + "\r\n"
-                            Domoticz.Debug("Telnet write:" + sWrite)
+                            Domoticz.Debug("Telnet write: " + sWrite)
                             self.telnetConn.Send(sWrite)
                     # Ignore username and password, I'm not sure when I should authenticate and it can be handled by ACL file directly by ebusd
                     #elif self.sCurrentCommand == "authenticate":
@@ -778,22 +782,23 @@ def valueDomoticzToEbusd(dUnit, sCommand, iLevel):
 
 # convert ebus sFieldValue (string) to integer, string values for domoticz, for dUnit (dictionnary)
 def valueEbusdToDomoticz(dUnit, sFieldValue):
-    iValue = 0
-    sValue = sFieldValue
     dOptionsMapping = dUnit["options"]
     if len(dOptionsMapping) > 0:
         if sFieldValue in dOptionsMapping:
             iValue = dOptionsMapping[sFieldValue]
             sValue = str(iValue)
     else:
-        if (sFieldValue == "on") or (sFieldValue == "yes"):
+        if (sFieldValue == "on") or (sFieldValue == "yes") or (sFieldValue == "On") or (sFieldValue == "Yes") or (sFieldValue == "ON") or (sFieldValue == "YES"):
             iValue = 1
-        elif (sFieldValue == "off") or (sFieldValue == "no"):
-            iValue = 1
+            sValue = "1"
+        elif (sFieldValue == "off") or (sFieldValue == "no") or (sFieldValue == "Off") or (sFieldValue == "No") or (sFieldValue == "OFF") or (sFieldValue == "NO"):
+            iValue = 0
+            sValue = "0"
         else:
             try:
                 iValue = int(sFieldValue)
             except ValueError:
-                sValue = sFieldValue
+                iValue = 0
+            sValue = sFieldValue
    
     return iValue, sValue
