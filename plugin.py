@@ -779,7 +779,7 @@ def valueDomoticzToEbusd(dUnit, sCommand, ifLevel):
     elif sCommand == "No" or sCommand == "NO":
         sValue = "no"
     else:
-        sValue = ifLevel
+        sValue = str(ifLevel)
             
     return sValue
 
