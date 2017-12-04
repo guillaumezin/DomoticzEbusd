@@ -536,14 +536,14 @@ class BasePlugin:
     
     # Will write a value to ebusd
     #   iUnitNumber: integer: unit index in Devices dict
-    #   iValue: integer: value to write
-    def write(self, iUnitNumber, sCommand, iLevel):
-        Domoticz.Debug("write called for unit " + str(iUnitNumber) + " command " + sCommand + " value " + str(iLevel))
+    #   ifLevel: integer or float: value to write
+    def write(self, iUnitNumber, sCommand, ifLevel):
+        Domoticz.Debug("write called for unit " + str(iUnitNumber) + " command " + sCommand + " value " + str(ifLevel))
         if (iUnitNumber in Devices) and (Devices[iUnitNumber].DeviceID in self.dUnits):
             dUnit = self.dUnits[Devices[iUnitNumber].DeviceID]
             
             # convert domoticz command and level to ebusd string value
-            sValue = valueDomoticzToEbusd(dUnit, sCommand, iLevel)
+            sValue = valueDomoticzToEbusd(dUnit, sCommand, ifLevel)
                 
             # if there are more than one field, we must read all fields, modify the required field and write back all fields at once
             iFieldsCount = dUnit["fieldscount"]
@@ -762,21 +762,24 @@ def getFieldType(sFieldUnit, sFieldName, sFieldType):
         "TEM_P": "number"
         }.get(sFieldType, "text")
 
-# convert domoticz sCommand (string) and iLevel (integer) to string value for ebusd, for dUnit (dictionnary)
-def valueDomoticzToEbusd(dUnit, sCommand, iLevel):
-    sValue = ""
+# convert domoticz sCommand (string) and ifLevel (integer of float) to string value for ebusd, for dUnit (dictionnary)
+def valueDomoticzToEbusd(dUnit, sCommand, ifLevel):
     if sCommand == "Set Level":
         dReverseOptionsMapping = dUnit["reverseoptions"]
         if (len(dReverseOptionsMapping) > 0) and (iLevel in dReverseOptionsMapping):
             sValue = dReverseOptionsMapping[iLevel]
         else:
             sValue = str(iLevel)
-    elif sCommand == "On":
+    elif sCommand == "On" or sCommand == "ON":
         sValue = "on"
-    elif sCommand == "Off":
+    elif sCommand == "Yes" or sCommand == "YES":
+        sValue = "yes"
+    elif sCommand == "Off" or sCommand == "OFF":
         sValue = "off"
+    elif sCommand == "No" or sCommand == "NO":
+        sValue = "no"
     else:
-        Domoticz.Error("unsupported value received command " + sCommand + " value " + str(iLevel))
+        sValue = ifLevel
             
     return sValue
 
