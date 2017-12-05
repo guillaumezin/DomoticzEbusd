@@ -343,7 +343,7 @@ class BasePlugin:
                             # https://github.com/domoticz/domoticz/blob/master/hardware/hardwaretypes.h ligne 42
                             # https://github.com/domoticz/domoticz/blob/master/hardware/plugins/PythonObjects.cpp ligne 410
                             sFieldType = getFieldType(dFields["unit"], dFields["name"], dFields["type"])
-                            # yes/no type
+                            # on/off type
                             if (sFieldType == "switch") and bWritable:
                                 sTypeName = "Switch"
                             # selector switch type
@@ -794,10 +794,10 @@ def valueEbusdToDomoticz(dUnit, sFieldValue):
     else:
         if (sFieldValue == "on") or (sFieldValue == "yes") or (sFieldValue == "On") or (sFieldValue == "Yes") or (sFieldValue == "ON") or (sFieldValue == "YES"):
             iValue = 1
-            sValue = "1"
+            sValue = "100"
         elif (sFieldValue == "off") or (sFieldValue == "no") or (sFieldValue == "Off") or (sFieldValue == "No") or (sFieldValue == "OFF") or (sFieldValue == "NO"):
             iValue = 0
-            sValue = "0"
+            sValue = "100"
         else:
             try:
                 iValue = int(sFieldValue)
