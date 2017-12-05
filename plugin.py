@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.0.2" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.0.3" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default=""/> -->
@@ -788,8 +788,9 @@ def valueEbusdToDomoticz(dUnit, sFieldValue):
     dOptionsMapping = dUnit["options"]
     if len(dOptionsMapping) > 0:
         if sFieldValue in dOptionsMapping:
-            iValue = dOptionsMapping[sFieldValue]
-            sValue = str(iValue)
+            # iValue from GetLightStatus in RFXName.cpp and hardwaretypes.h
+            iValue = 2
+            sValue = str(dOptionsMapping[sFieldValue])
     else:
         if (sFieldValue == "on") or (sFieldValue == "yes") or (sFieldValue == "On") or (sFieldValue == "Yes") or (sFieldValue == "ON") or (sFieldValue == "YES"):
             iValue = 1
