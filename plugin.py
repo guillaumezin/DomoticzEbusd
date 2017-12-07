@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.0.2" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.0.3" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default=""/> -->
@@ -263,7 +263,11 @@ class BasePlugin:
                                     # Convert value from ebusd to domoticz ones
                                     iValue, sValue = valueEbusdToDomoticz(dUnit, sFieldValue)
                                     Domoticz.Debug("Update domoticz with iValue " + str(iValue) + " and sValue " + sValue + " field number " + str(dUnit["fieldindex"]))
-                                    Devices[dUnit["index"]].Update(nValue=iValue, sValue=sValue, Options=dUnit["domoticzoptions"])
+                                    # Update only if difference, to prevent useless dB access
+                                    if (Devices[dUnit["index"]].nValue != iValue) or (Devices[dUnit["index"]].sValue != sValue):
+                                        Devices[dUnit["index"]].Update(nValue=iValue, sValue=sValue, Options=dUnit["domoticzoptions"])
+                                    else:
+                                        Domoticz.Debug("Update cancelled because useless")
                                 else:
                                     Domoticz.Error("parsing error on field for value " + sReadValue)
                         else:
