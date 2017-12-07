@@ -4,7 +4,7 @@ This is a plugin for [Domoticz](https://domoticz.com), for Domoticz to communica
 
 ## Warning
 
-This is a hobby project, use it if you know what you are doing and at your own risks, I cannot be held responsible for toying and erasing your boiler configuration or breaking your underfloor heating system. I strongly advise to an hardware protection device for your underfloor heating system, for instance an aquastat on the "burner off" input, that opens at 50°C for instance (protection in case of programming error, or piracy...).
+This is a hobby project, use it if you know what you are doing and at your own risks, I cannot be held responsible for toying and erasing your boiler configuration or breaking your underfloor heating system. I strongly advise to an hardware protection device for your underfloor heating system, for instance an aquastat on the "burner off" input, that opens at 50°C (protection in case of programming error, or piracy...).
 
 ## Prerequisites
 
