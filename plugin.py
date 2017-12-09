@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.0.4" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.0.5" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default=""/> -->
@@ -13,13 +13,19 @@
         <param field="Mode1" label="JSON HTTP port" width="75px" required="true" default="8889"/>
         <param field="Mode2" label="Registers" width="1000px" required="true" default=""/>
         <param field="Mode3" label="Refresh rate (seconds)" width="75px" required="false" default="600"/>
-        <param field="Mode4" label="Read-only" width="75px">
+        <param field="Mode4" label="Disable cache" width="75px">
             <options>
                 <option label="True" value="True"/>
                 <option label="False" value="False"  default="true" />
             </options>
         </param>
-        <param field="Mode5" label="Debug" width="75px">
+        <param field="Mode5" label="Read-only" width="75px">
+            <options>
+                <option label="True" value="True"/>
+                <option label="False" value="False"  default="true" />
+            </options>
+        </param>
+        <param field="Mode6" label="Debug" width="75px">
             <options>
                 <option label="True" value="Debug"/>
                 <option label="False" value="Normal"  default="true" />
@@ -319,7 +325,7 @@ class BasePlugin:
                         Domoticz.Debug("Found")
                         # check if writable
                         sWKey = sMessage + "-w"
-                        if (not (Parameters["Mode4"] == "True")) and (sWKey in oJson[sCircuit]["messages"]) and ("write" in oJson[sCircuit]["messages"][sWKey]) and oJson[sCircuit]["messages"][sWKey]["write"] :
+                        if (not (Parameters["Mode5"] == "True")) and (sWKey in oJson[sCircuit]["messages"]) and ("write" in oJson[sCircuit]["messages"][sWKey]) and oJson[sCircuit]["messages"][sWKey]["write"] :
                             Domoticz.Debug("Writable")
                             dMessage = oJson[sCircuit]["messages"][sWKey]
                             bWritable = True
@@ -431,8 +437,8 @@ class BasePlugin:
         Domoticz.Log("JSON  HTTP port set to " + Parameters["Mode1"])
         Domoticz.Log("Registers set to " + Parameters["Mode2"])
         Domoticz.Log("Refresh rate set to " + Parameters["Mode3"])
-        Domoticz.Log("Read-only set to " + Parameters["Mode4"])
-        Domoticz.Log("Debug set to " + Parameters["Mode5"])
+        Domoticz.Log("Read-only set to " + Parameters["Mode5"])
+        Domoticz.Log("Debug set to " + Parameters["Mode6"])
         # most init
         self.__init__()
         # set refresh rate to its default value if not an integer
@@ -443,7 +449,7 @@ class BasePlugin:
             Domoticz.Error("refresh rate parameter incorrect, set to its default value")
             self.iRefreshRate = 600
         # enable debug if required
-        if Parameters["Mode5"] == "Debug":
+        if Parameters["Mode6"] == "Debug":
             Domoticz.Debugging(1)
         # now we can enabling the plugin
         self.isStarted = True
@@ -601,7 +607,11 @@ class BasePlugin:
                         #self.telnetConn.Send("read -c " + dUnit["circuit"] + " " + dUnit["name"] + "\r\n")
                         #self.telnetConn.Send("read -c " + dUnit["circuit"] + " " + dUnit["name"] + " " + dUnit["fieldname"] + "." + str(dUnit["fieldindex"]) + "\r\n")
                         # telnet read command in verbose mode
-                        sRead = "read -v -c " + dUnit["circuit"] + " " + dUnit["name"] + "\r\n"
+                        sRead = "read "
+                        # if no cache
+                        if Parameters["Mode4"] == "True" :
+                            sRead = sRead + "-f "
+                        sRead = sRead + " -v -c " + dUnit["circuit"] + " " + dUnit["name"] + "\r\n"
                         Domoticz.Debug("Telnet write: " + sRead)
                         self.telnetConn.Send(sRead)
                     # write command
