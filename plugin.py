@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.0.5" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.0.6" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default=""/> -->
@@ -349,6 +349,7 @@ class BasePlugin:
                             # https://github.com/domoticz/domoticz/blob/master/hardware/hardwaretypes.h ligne 42
                             # https://github.com/domoticz/domoticz/blob/master/hardware/plugins/PythonObjects.cpp ligne 410
                             sFieldType = getFieldType(dFields["unit"], dFields["name"], dFields["type"])
+                            Domoticz.Debug("Field is type " + sFieldType)
                             # on/off type
                             if (sFieldType == "switch") and bWritable:
                                 sTypeName = "Switch"
@@ -370,7 +371,7 @@ class BasePlugin:
                                 Domoticz.Debug("LevelNames for Domoticz are " + sLevelNames)
                                 dOptions = {"LevelActions": sLevelActions, "LevelNames": sLevelNames, "LevelOffHidden": "true", "SelectorStyle": "1"}
                             # number type, probably to improve
-                            elif (sFieldType == "number") and bWritable:
+                            elif (sFieldType == "number") or (sFieldType == "custom"):
                                 sTypeName = "Custom"
                                 dOptions = { "Custom": "1;" + str(dFields["unit"])}
                             # setpoint type
@@ -745,6 +746,7 @@ def getFieldType(sFieldUnit, sFieldName, sFieldType):
         "D1B": "number",
         "D1C": "number",
         "D2B": "number",
+        "D2C": "number",
         "FLT": "number",
         "FLR": "number",
         "EXP": "number",
