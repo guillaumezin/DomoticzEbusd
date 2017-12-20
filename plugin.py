@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.0.6" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.0.7" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default=""/> -->
@@ -518,12 +518,14 @@ class BasePlugin:
                     # empty buffer
                     self.sBuffer = ""
 
-    def onCommand(self, Unit, Command, Level, Hue):
-        Domoticz.Debug("onCommand called for unit " + str(Unit) + ": Parameter '" + str(Command) + "', Level: " + str(Level))
+    def onCommand(self, Unit, Command, ifValue, Hue, sValue = None):
+        if sValue is None:
+            sValue = ''
+        Domoticz.Debug("onCommand called for unit " + str(Unit) + ": Parameter '" + str(Command) + "', ifValue: " + str(ifValue) + ", sValue: " + str(sValue))
         # if started and not stopping
         if self.isStarted:
             # add write to the queue
-            self.write(Unit, Command, Level)
+            self.write(Unit, Command, ifValue, sValue)
 
     def onNotification(self, Name, Subject, Text, Status, Priority, Sound, ImageFile):
         Domoticz.Debug("onNotification called: " + Name + "," + Subject + "," + Text + "," + Status + "," + str(Priority) + "," + Sound + "," + ImageFile)
@@ -544,13 +546,13 @@ class BasePlugin:
     # Will write a value to ebusd
     #   iUnitNumber: integer: unit index in Devices dict
     #   ifLevel: integer or float: value to write
-    def write(self, iUnitNumber, sCommand, ifLevel):
-        Domoticz.Debug("write called for unit " + str(iUnitNumber) + " command " + sCommand + " value " + str(ifLevel))
+    def write(self, iUnitNumber, sCommand, ifValue, sValue):
+        Domoticz.Debug("write called for unit " + str(iUnitNumber) + " command " + sCommand + " value " + str(ifValue) + " / " + sValue)
         if (iUnitNumber in Devices) and (Devices[iUnitNumber].DeviceID in self.dUnits):
             dUnit = self.dUnits[Devices[iUnitNumber].DeviceID]
             
             # convert domoticz command and level to ebusd string value
-            sValue = valueDomoticzToEbusd(dUnit, sCommand, ifLevel)
+            sValue = valueDomoticzToEbusd(dUnit, sCommand, ifValue, sValue, Devices[iUnitNumber].nValue, Devices[iUnitNumber].sValue)
                 
             # if there are more than one field, we must read all fields, modify the required field and write back all fields at once
             iFieldsCount = dUnit["fieldscount"]
@@ -689,9 +691,9 @@ def onMessage(Connection, Data):
     global _plugin
     _plugin.onMessage(Connection, Data)
 
-def onCommand(Unit, Command, Level, Hue):
+def onCommand(Unit, Command, ifValue, Hue, sValue = None):
     global _plugin
-    _plugin.onCommand(Unit, Command, Level, Hue)
+    _plugin.onCommand(Unit, Command, ifValue, Hue, sValue)
 
 def onNotification(Name, Subject, Text, Status, Priority, Sound, ImageFile):
     global _plugin
@@ -774,26 +776,35 @@ def getFieldType(sFieldUnit, sFieldName, sFieldType):
         "TEM_P": "number"
         }.get(sFieldType, "text")
 
-# convert domoticz sCommand (string) and ifLevel (integer of float) to string value for ebusd, for dUnit (dictionnary)
-def valueDomoticzToEbusd(dUnit, sCommand, ifLevel):
-    if sCommand == "Set Level":
+# convert domoticz sCommand (string) and ifValue (integer of float) or sValue (string) to string value for ebusd, for dUnit (dictionnary)
+def valueDomoticzToEbusd(dUnit, sCommand, ifValue, sValue, previousIValue, previousSValue):
+    sCommand = sCommand.lower()
+    if sCommand == "set level":
         dReverseOptionsMapping = dUnit["reverseoptions"]
-        if (len(dReverseOptionsMapping) > 0) and (ifLevel in dReverseOptionsMapping):
-            sValue = dReverseOptionsMapping[ifLevel]
+        if (len(dReverseOptionsMapping) > 0) and (ifValue in dReverseOptionsMapping):
+            sReturnValue = dReverseOptionsMapping[ifValue]
         else:
-            sValue = str(ifLevel)
-    elif sCommand == "On" or sCommand == "ON":
-        sValue = "on"
-    elif sCommand == "Yes" or sCommand == "YES":
-        sValue = "yes"
-    elif sCommand == "Off" or sCommand == "OFF":
-        sValue = "off"
-    elif sCommand == "No" or sCommand == "NO":
-        sValue = "no"
+            sReturnValue = str(ifValue)
+    elif sCommand == "on":
+        sReturnValue = "on"
+    elif sCommand == "yes":
+        sReturnValue = "yes"
+    elif sCommand == "off":
+        sReturnValue = "off"
+    elif sCommand == "no":
+        sReturnValue = "no"
+    elif sCommand == "toggle":
+        if previousIValue:
+            sReturnValue = "no"
+        else:
+            sReturnValue = "yes"
     else:
-        sValue = str(ifLevel)
+        if sValue is not None:
+            sReturnValue = sValue
+        else:
+            sReturnValue = str(ifValue)
             
-    return sValue
+    return sReturnValue
 
 # convert ebus sFieldValue (string) to integer, string values for domoticz, for dUnit (dictionnary)
 def valueEbusdToDomoticz(dUnit, sFieldValue):
@@ -804,10 +815,11 @@ def valueEbusdToDomoticz(dUnit, sFieldValue):
             iValue = 2
             sValue = str(dOptionsMapping[sFieldValue])
     else:
-        if (sFieldValue == "on") or (sFieldValue == "yes") or (sFieldValue == "On") or (sFieldValue == "Yes") or (sFieldValue == "ON") or (sFieldValue == "YES"):
+        sLowerFieldValue = sFieldValue.lower()
+        if (sLowerFieldValue == "on") or (sLowerFieldValue == "yes"):
             iValue = 1
             sValue = "100"
-        elif (sFieldValue == "off") or (sFieldValue == "no") or (sFieldValue == "Off") or (sFieldValue == "No") or (sFieldValue == "OFF") or (sFieldValue == "NO"):
+        elif (sLowerFieldValue == "off") or (sLowerFieldValue == "no"):
             iValue = 0
             sValue = "100"
         else:
