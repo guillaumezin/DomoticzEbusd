@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.0.8" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.0.9" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default=""/> -->
@@ -518,12 +518,16 @@ class BasePlugin:
                     # empty buffer
                     self.sBuffer = ""
 
-    def onCommand(self, Unit, Command, ifValue, isValue):
-        Domoticz.Debug("onCommand called for unit " + str(Unit) + ": Parameter '" + str(Command) + "', ifValue: " + str(ifValue) + ", sValue: " + str(isValue))
+    def onCommand(self, Unit, Command, ifValue, dDetails = None):
+        if (dDetails is not None) and ('svalue' in dDetails):
+            sValue = dDetails['svalue']
+        else:
+            sValue = ''
+        Domoticz.Debug("onCommand called for unit " + str(Unit) + ": Parameter '" + str(Command) + "', ifValue: " + str(ifValue) + ", sValue: " + str(sValue))
         # if started and not stopping
         if self.isStarted:
             # add write to the queue
-            self.write(Unit, Command, ifValue, isValue)
+            self.write(Unit, Command, ifValue, sValue)
 
     def onNotification(self, Name, Subject, Text, Status, Priority, Sound, ImageFile):
         Domoticz.Debug("onNotification called: " + Name + "," + Subject + "," + Text + "," + Status + "," + str(Priority) + "," + Sound + "," + ImageFile)
@@ -544,13 +548,13 @@ class BasePlugin:
     # Will write a value to ebusd
     #   iUnitNumber: integer: unit index in Devices dict
     #   ifLevel: integer or float: value to write
-    def write(self, iUnitNumber, sCommand, ifValue, isValue):
-        Domoticz.Debug("write called for unit " + str(iUnitNumber) + " command " + sCommand + " value " + str(ifValue) + " / " + str(isValue))
+    def write(self, iUnitNumber, sCommand, ifValue, sValue):
+        Domoticz.Debug("write called for unit " + str(iUnitNumber) + " command " + sCommand + " value " + str(ifValue) + " / " + sValue)
         if (iUnitNumber in Devices) and (Devices[iUnitNumber].DeviceID in self.dUnits):
             dUnit = self.dUnits[Devices[iUnitNumber].DeviceID]
             
             # convert domoticz command and level to ebusd string value
-            sValue = valueDomoticzToEbusd(dUnit, sCommand, ifValue, isValue, Devices[iUnitNumber].nValue, Devices[iUnitNumber].sValue)
+            sValue = valueDomoticzToEbusd(dUnit, sCommand, ifValue, sValue, Devices[iUnitNumber].nValue, Devices[iUnitNumber].sValue)
                 
             # if there are more than one field, we must read all fields, modify the required field and write back all fields at once
             iFieldsCount = dUnit["fieldscount"]
@@ -689,9 +693,9 @@ def onMessage(Connection, Data):
     global _plugin
     _plugin.onMessage(Connection, Data)
 
-def onCommand(Unit, Command, LevelOrNvalue, HueOrSValue):
+def onCommand(Unit, Command, LevelOrNvalue, Details = None):
     global _plugin
-    _plugin.onCommand(Unit, Command, LevelOrNvalue, HueOrSValue)
+    _plugin.onCommand(Unit, Command, LevelOrNvalue, Details)
 
 def onNotification(Name, Subject, Text, Status, Priority, Sound, ImageFile):
     global _plugin
@@ -774,8 +778,8 @@ def getFieldType(sFieldUnit, sFieldName, sFieldType):
         "TEM_P": "number"
         }.get(sFieldType, "text")
 
-# convert domoticz sCommand (string) and ifValue (integer of float) or isValue (integer or string) to string value for ebusd, for dUnit (dictionnary)
-def valueDomoticzToEbusd(dUnit, sCommand, ifValue, isValue, previousIValue, previousSValue):
+# convert domoticz sCommand (string) and ifValue (integer of float) or sValue (string) to string value for ebusd, for dUnit (dictionnary)
+def valueDomoticzToEbusd(dUnit, sCommand, ifValue, sValue, previousIValue, previousSValue):
     sCommand = sCommand.lower()
     if sCommand == "set level":
         dReverseOptionsMapping = dUnit["reverseoptions"]
@@ -797,8 +801,8 @@ def valueDomoticzToEbusd(dUnit, sCommand, ifValue, isValue, previousIValue, prev
         else:
             sReturnValue = "yes"
     else:
-        if isValue and isinstance(isValue, str):
-            sReturnValue = isValue
+        if sValue:
+            sReturnValue = sValue
         else:
             sReturnValue = str(ifValue)
             
