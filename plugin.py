@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.0.9" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.1.0" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default=""/> -->
@@ -240,7 +240,7 @@ class BasePlugin:
             if len(sParams) >= 3:
                 # Search in configured units a corresponding one
                 for dUnit in self.dUnits.values():
-                    if (dUnit["circuit"] == sParams[0]) and (dUnit["name"] == sParams[1]):
+                    if (type(dUnit) is dict) and (dUnit["circuit"] == sParams[0]) and (dUnit["name"] == sParams[1]):
                         Domoticz.Debug("Match circuit " + dUnit["circuit"] + " register " + dUnit["name"] + " for value " + sReadValue)
                         # Split received fields by ;
                         sFields = sParams[2].split(";")
@@ -292,7 +292,7 @@ class BasePlugin:
         # enumerate with 0 based integer and register name (sDeviceID)
         for sDeviceID in lUnits:
             # continue only if sDeviceID not already in self.dUnits
-            if not (sDeviceID in self.dUnits):
+            if (len(sDeviceID) > 0) and not (sDeviceID in self.dUnits):
                 # now split device in circuit/message/fieldnumber
                 #sPath = sDeviceID.split("-")
                 sPath = sDeviceID.split(":")
@@ -438,6 +438,7 @@ class BasePlugin:
         Domoticz.Log("JSON  HTTP port set to " + Parameters["Mode1"])
         Domoticz.Log("Registers set to " + Parameters["Mode2"])
         Domoticz.Log("Refresh rate set to " + Parameters["Mode3"])
+        Domoticz.Log("Disable cache set to " + Parameters["Mode4"])
         Domoticz.Log("Read-only set to " + Parameters["Mode5"])
         Domoticz.Log("Debug set to " + Parameters["Mode6"])
         # most init
@@ -671,7 +672,9 @@ class BasePlugin:
                     self.findDevices()
                 # refresh values of already detected registers
                 for indexUnit, dUnit in self.dUnits.items():
-                    self.read(dUnit["index"])
+                    # check this is a real unit (dict) and not a string (error)
+                    if type(dUnit) is dict:
+                        self.read(dUnit["index"])
                 self.iRefreshTime = timeNow
 
 global _plugin
