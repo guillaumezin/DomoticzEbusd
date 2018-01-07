@@ -381,6 +381,9 @@ class BasePlugin:
                             # read-only temperature type
                             elif (sFieldType == "temperature"):
                                 sTypeName = "Temperature"
+                            # read-ony pressure type
+                            elif (sFieldType == "pressure"):
+                                sTypeName = "Pressure"
                             # else text type
                             else:
                                 sTypeName = "Text"
@@ -731,6 +734,8 @@ def DumpConfigToLog():
 def getFieldType(sFieldUnit, sFieldName, sFieldType):
     if sFieldUnit == "°C":
         return "temperature"
+    elif sFieldName == "press"
+        return "pressure"
     elif sFieldUnit != "":
         return "custom"
     elif sFieldName == "onoff":
