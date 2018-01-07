@@ -1,10 +1,10 @@
 #           ebusd Plugin
 #
-#           Author:     Barberousse, 2017
+#           Author:     Barberousse, z1mEk, 2017-2018
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.1.0" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.1.1" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default=""/> -->
@@ -381,7 +381,7 @@ class BasePlugin:
                             # read-only temperature type
                             elif (sFieldType == "temperature"):
                                 sTypeName = "Temperature"
-                            # read-ony pressure type
+                            # pressure type
                             elif (sFieldType == "pressure"):
                                 sTypeName = "Pressure"
                             # else text type
@@ -734,7 +734,7 @@ def DumpConfigToLog():
 def getFieldType(sFieldUnit, sFieldName, sFieldType):
     if sFieldUnit == "°C":
         return "temperature"
-    elif sFieldName == "press"
+    elif sFieldUnit == "bar":
         return "pressure"
     elif sFieldUnit != "":
         return "custom"
