@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.1.1" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.1.2" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default=""/> -->
@@ -522,16 +522,28 @@ class BasePlugin:
                     # empty buffer
                     self.sBuffer = ""
 
-    def onCommand(self, Unit, Command, ifValue, dDetails = None):
-        if (dDetails is not None) and ('svalue' in dDetails):
-            sValue = dDetails['svalue']
+    def onCommand(self, Unit, Command, Level, Hue):
+        Domoticz.Debug("onCommand called for unit " + str(Unit) + ": Parameter '" + str(Command) + "', Level: " + str(Level) + ", Hue: " + str(Hue))
+        # if started and not stopping
+        if Command != "udevice":
+            if self.isStarted:
+                # add write to the queue
+                self.write(Unit, Command, Level, '')
+
+    def onUpdate(self, Unit, Command, Details):
+        if (Details is not None) and ('sValue' in Details):
+            sValue = Details['sValue']
         else:
             sValue = ''
-        Domoticz.Debug("onCommand called for unit " + str(Unit) + ": Parameter '" + str(Command) + "', ifValue: " + str(ifValue) + ", sValue: " + str(sValue))
-        # if started and not stopping
-        if self.isStarted:
-            # add write to the queue
-            self.write(Unit, Command, ifValue, sValue)
+        if (Details is not None) and ('iValue' in Details):
+            iValue = Details['iValue']
+
+        Domoticz.Debug("onUpdate called for unit " + str(Unit) + ": Parameter '" + str(Command) + "', iValue: " + str(iValue) + ", sValue: " + str(sValue))
+        if Command == "udevice":
+            # if started and not stopping
+            if self.isStarted:
+                # add write to the queue
+                self.write(Unit, Command, iValue, sValue)
 
     def onNotification(self, Name, Subject, Text, Status, Priority, Sound, ImageFile):
         Domoticz.Debug("onNotification called: " + Name + "," + Subject + "," + Text + "," + Status + "," + str(Priority) + "," + Sound + "," + ImageFile)
@@ -699,9 +711,13 @@ def onMessage(Connection, Data):
     global _plugin
     _plugin.onMessage(Connection, Data)
 
-def onCommand(Unit, Command, LevelOrNvalue, Details = None):
+def onCommand(Unit, Command, Level, Hue):
     global _plugin
-    _plugin.onCommand(Unit, Command, LevelOrNvalue, Details)
+    _plugin.onCommand(Unit, Command, Level, Hue)
+
+def onUpdate(Unit, Command, Details):
+    global _plugin
+    _plugin.onUpdate(Unit, Command, Details)
 
 def onNotification(Name, Subject, Text, Status, Priority, Sound, ImageFile):
     global _plugin
@@ -789,9 +805,9 @@ def getFieldType(sFieldUnit, sFieldName, sFieldType):
 # convert domoticz sCommand (string) and ifValue (integer of float) or sValue (string) to string value for ebusd, for dUnit (dictionnary)
 def valueDomoticzToEbusd(dUnit, sCommand, ifValue, sValue, previousIValue, previousSValue):
     sCommand = sCommand.lower()
-    if sCommand == "set level":
-        dReverseOptionsMapping = dUnit["reverseoptions"]
-        if (len(dReverseOptionsMapping) > 0) and (ifValue in dReverseOptionsMapping):
+    dReverseOptionsMapping = dUnit["reverseoptions"]
+    if len(dReverseOptionsMapping) > 0:
+        if ifValue in dReverseOptionsMapping:
             sReturnValue = dReverseOptionsMapping[ifValue]
         else:
             sReturnValue = str(ifValue)
