@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.1.3" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.1.4" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default=""/> -->
@@ -61,9 +61,10 @@ class BasePlugin:
     # integer that reflects the refresh time set in Parameters["Mode3"]
     iRefreshRate = None
     # dictionnary of dictonnaries, keyed by deviceid string (circuit:register:fieldindex, for instance "f47:OutsideTemp:0")
+    #   "device": object: object corresponding in Devices dict
     #   "index": integer: Devices index of unit
     #   "circuit": string: circuit name, for instance "f47"
-    #   "name": string: register, for instance "OutsideTemp"
+    #   "register": string: register, for instance "OutsideTemp"
     #   "fieldindex": integer: field index (0 based)
     #   "fieldscount": integer: total number of fields
     #   "options": dictionnary: keyed by ebusd value, contains selector switch level integer value, empty if not selector switch
@@ -72,9 +73,11 @@ class BasePlugin:
     #   "fieldsvalues": string: fields values read after "readwhole" operation
     #   "fieldsvaluestimestamp": integer: time when fields values have been updated
     dUnits = None
+    # same dictionnary, but keyed by 3 dimensions: dUnits3D[circuit][register][fieldindex]
+    dUnits3D = None
     # dequeue of dictionnaries
     #   "operation": string: can be "read", "readwhole", "write", "authenticate"
-    #   "deviceid":string, deviceid string (circuit:register:fieldindex, for instance "f47:OutsideTemp:0"), used only for "read", "readwhole" and "write" operation
+    #   "unit": dict contained in dUnits
     #   "value": string: value to write in ebusd format, used only for "write" operation
     dqFifo = None
     # string that contains the connection step: "idle", then "connecting", then "connected", then "data sending"
@@ -91,6 +94,7 @@ class BasePlugin:
         self.telnetConn = None
         self.jsonConn = None
         self.dUnits = {}
+        self.dUnits3D = {}
         self.sBuffer = ""
         self.bStillToLook = True
         self.iRefreshTime = 0
@@ -237,43 +241,41 @@ class BasePlugin:
             # We sould receive something like "f47 OutsideTemp temp=9.56;sensor=ok"
             # Split by space
             lParams = sReadValue.split(" ", 2)
-            if len(lParams) == 3:
-                # Search in configured units a corresponding one
-                for dUnit in self.dUnits.values():
-                    if (type(dUnit) is dict) and (dUnit["circuit"] == lParams[0]) and (dUnit["name"] == lParams[1]):
-                        Domoticz.Debug("Match circuit " + dUnit["circuit"] + " register " + dUnit["name"] + " for value " + sReadValue)
-                        # Split received fields by ;
-                        lFields = lParams[2].split(";")
+            if len(lParams) >= 3:
+                # Split received fields by ;
+                sFields = lParams[2].split(";")
+                lFieldsValues = []
+                sCircuit = lParams[0]
+                sRegister = lParams[1]
+                # Look for corresponding circuit and register
+                if (sCircuit in self.dUnits3D) and (sRegister in self.dUnits3D[sCircuit]):
+                    # Extract read fields
+                    for sField in sFields:
+                        # Keep only the right of =
+                        sFieldContent = sField.split("=")
                         # Sanity check
-                        if len(lFields) == dUnit["fieldscount"]:
-                            # If command is "readwhole", collect all fields contents and save them inside dUnit["fieldsvalues"]
-                            if self.sCurrentCommand == "readwhole":
-                                lFieldsValues = []
-                                for sField in lFields:
-                                    # Keep only the right of =
-                                    lFieldContent = sField.split("=")
-                                    # Sanity check
-                                    if len(lFieldContent) == 2:
-                                        lFieldsValues.append(lFieldContent[1])
-                                    else:
-                                        Domoticz.Error("Parsing error on field for value " + sReadValue)
-                                dUnit["fieldsvalues"] = ";".join(lFieldsValues)
-                                dUnit["fieldsvaluestimestamp"] = time.time()
-                                Domoticz.Debug("Save whole fields values " + dUnit["fieldsvalues"])
-                            else:
-                                # Command wasn't "readwhole", extract correct field
-                                lFieldContent = lFields[dUnit["fieldindex"]].split("=")
-                                # Sanity check
-                                if len(lFieldContent) == 2:
-                                    sFieldValue = lFieldContent[1]
-                                    # Convert value from ebusd to domoticz ones
-                                    iValue, sValue = valueEbusdToDomoticz(dUnit, sFieldValue)
-                                    Domoticz.Debug("Update domoticz with iValue " + str(iValue) + " and sValue " + sValue + " field number " + str(dUnit["fieldindex"]))
-                                    Devices[dUnit["index"]].Update(nValue=iValue, sValue=sValue, Options=dUnit["domoticzoptions"])
-                                else:
-                                    Domoticz.Error("Parsing error on field for value " + sReadValue)
+                        if len(sFieldContent) == 2:
+                                # Keep read values in lFieldsValues
+                                lFieldsValues.append(sFieldContent[1])
                         else:
-                            Domoticz.Error("Parsing error on field count for value " + sReadValue + " (" + str(dUnit["fieldscount"]) + " fields expected)")
+                                Domoticz.Error("Parsing error on field for value " + sReadValue)
+                    
+                    # Save whole values for later use with a timestamp
+                    sFieldsValues = ";".join(lFieldsValues)
+                    iFieldsValuesTimestamp = time.time()
+                    for dUnit in self.dUnits3D[sCircuit][sRegister].values():
+                        dUnit["fieldsvalues"] = sFieldsValues
+                        dUnit["fieldsvaluestimestamp"] = iFieldsValuesTimestamp
+                        Domoticz.Debug("Save whole fields values " + dUnit["fieldsvalues"])						
+                        # Distribute read values for each field we are interested into
+                        if dUnit["fieldindex"] < len(lFieldsValues):
+                            sFieldValue = lFieldsValues[dUnit["fieldindex"]]
+                            iValue, sValue = valueEbusdToDomoticz(dUnit, sFieldValue)
+                            Devices[dUnit["index"]].Update(nValue=iValue, sValue=sValue, Options=dUnit["domoticzoptions"])
+                        else:
+                            Domoticz.Error("Field not found in unit dictionaries for circuit " + dUnit["circuit"] + " register " + dUnit["register"] + " field " + str(dUnit["fieldindex"]) + " for value " + sReadValue)
+                else:
+                        Domoticz.Error("Received unexpected value " + sReadValue)
                             
         # Data received, going back to "connected" connection step
         self.sConnectionStep = "connected"
@@ -446,9 +448,14 @@ class BasePlugin:
                                     break
                             
                             # incorporate found or created device to local self.dUnits dictionnary, to keep additionnal parameters used by the plugin
-                            self.dUnits[sDeviceID] = { "index":iIndexUnit, "circuit":sCircuit, "name":sMessage, "fieldindex":iFieldIndex, "fieldscount":iFieldsCount, "options":dOptionsMapping, "reverseoptions":dReverseOptionsMapping, "domoticzoptions": dOptions }
+                            self.dUnits[sDeviceID] = { "device":Devices[iIndexUnit], "index":iIndexUnit, "circuit":sCircuit, "register":sMessage, "fieldindex":iFieldIndex, "fieldscount":iFieldsCount, "options":dOptionsMapping, "reverseoptions":dReverseOptionsMapping, "domoticzoptions": dOptions }
+                            if not sCircuit in self.dUnits3D:
+                                self.dUnits3D[sCircuit] = {}
+                            if not sMessage in self.dUnits3D[sCircuit]:
+                                self.dUnits3D[sCircuit][sMessage] = {}
+                            self.dUnits3D[sCircuit][sMessage][iFieldIndex] = self.dUnits[sDeviceID]
                             # place a read command in the queue for each device to refresh its value asap
-                            self.read(iIndexUnit)
+                            self.read(self.dUnits[sDeviceID])
                         else:
                             Domoticz.Error("Device " + sDeviceID + " has no field " + sFieldIndex)
                             self.dUnits[sDeviceID] = "incorrect field"
@@ -577,44 +584,46 @@ class BasePlugin:
         Domoticz.Debug("onDisconnect called")
 
     # Add a read command to the queue
-    #   iUnitNumber: integer: unit index in Devices dict
-    def read(self, iUnitNumber):
-        Domoticz.Debug("read called for unit " + str(iUnitNumber))
-        if iUnitNumber in Devices:
-            self.dqFifo.append({"operation":"read", "deviceid":Devices[iUnitNumber].DeviceID})
+    #   dUnit: dict
+    def read(self, dUnit):
+        if type(dUnit) is dict:
+            Domoticz.Debug("read called for circuit " + dUnit["circuit"] + " register " + dUnit["register"] + " field " + str(dUnit["fieldindex"]))
+            self.dqFifo.append({"operation":"read", "unit":dUnit})
             self.handleFifo()
         else:
-            Domoticz.Error("Cannot read device " + str(iUnitNumber) + " that doesn't exist")
+            Domoticz.Error("Cannot read device that is in error state: " + dUnit)
     
     # Will write a value to ebusd
     #   iUnitNumber: integer: unit index in Devices dict
     #   ifLevel: integer or float: value to write
     def write(self, iUnitNumber, sCommand, ifValue, sValue):
-        Domoticz.Debug("write() called for unit " + str(iUnitNumber) + " command " + sCommand + " value " + str(ifValue) + " / " + sValue)
+        Domoticz.Debug("write called for unit " + str(iUnitNumber) + " command " + sCommand + " value " + str(ifValue) + " / " + sValue)
         if (iUnitNumber in Devices) and (Devices[iUnitNumber].DeviceID in self.dUnits):
             dUnit = self.dUnits[Devices[iUnitNumber].DeviceID]
-            
-            # convert domoticz command and level to ebusd string value
-            sValue = valueDomoticzToEbusd(dUnit, sCommand, ifValue, sValue, Devices[iUnitNumber].nValue, Devices[iUnitNumber].sValue)
-                
-            # if there are more than one field, we must read all fields, modify the required field and write back all fields at once
-            iFieldsCount = dUnit["fieldscount"]
-            if iFieldsCount <= 1:
-                Domoticz.Debug("Will write " + sValue)
-                self.dqFifo.append({"operation":"write", "deviceid":Devices[iUnitNumber].DeviceID, "value":sValue})
-                # write then read to update Domoticz interface
-                self.dqFifo.append({"operation":"read", "deviceid":Devices[iUnitNumber].DeviceID})
-                # launch commands in the queue
-                self.handleFifo()
+            if type(dUnit) is dict:
+                # convert domoticz command and level to ebusd string value
+                sValue = valueDomoticzToEbusd(dUnit, sCommand, ifValue, sValue, Devices[iUnitNumber].nValue, Devices[iUnitNumber].sValue)
+                        
+                # if there are more than one field, we must read all fields, modify the required field and write back all fields at once
+                iFieldsCount = dUnit["fieldscount"]
+                if iFieldsCount <= 1:
+                    Domoticz.Debug("Will write " + sValue)
+                    self.dqFifo.append({"operation":"write", "unit":dUnit, "value":sValue})
+                    # write then read to update Domoticz interface
+                    self.dqFifo.append({"operation":"read", "unit":dUnit})
+                    # launch commands in the queue
+                    self.handleFifo()
+                else:
+                    Domoticz.Debug("Will write (more than one field) " + sValue)
+                    # read all fields first before write one field when more than one field in the message
+                    self.dqFifo.append({"operation":"read", "unit":dUnit})
+                    self.dqFifo.append({"operation":"write", "unit":dUnit, "value":sValue})
+                    # write then read to update Domoticz interface
+                    self.dqFifo.append({"operation":"read", "unit":dUnit})
+                    # launch commands in the queue
+                    self.handleFifo()
             else:
-                Domoticz.Debug("Will write (more than one field) " + sValue)
-                # read all fields first before write one field when more than one field in the message
-                self.dqFifo.append({"operation":"readwhole", "deviceid":Devices[iUnitNumber].DeviceID})
-                self.dqFifo.append({"operation":"write", "deviceid":Devices[iUnitNumber].DeviceID, "value":sValue})
-                # write then read to update Domoticz interface
-                self.dqFifo.append({"operation":"read", "deviceid":Devices[iUnitNumber].DeviceID})
-                # launch commands in the queue
-                self.handleFifo()
+                Domoticz.Error("Cannot write device " + str(iUnitNumber) + " that is in error state: " + dUnit)
         else:
             Domoticz.Error("Cannot write device " + str(iUnitNumber) + " that doesn't exist")
         
@@ -641,29 +650,28 @@ class BasePlugin:
             else:
                 Domoticz.Debug("Handle")
                 # pop command from queue (first in first out)
+                # pop command from queue (first in first out)
                 sCommand = self.dqFifo.popleft()
-                # get corresponding unit by deviceid
-                sDeviceID = sCommand["deviceid"]
-                if sDeviceID in self.dUnits:
-                    self.sConnectionStep = "data sending"
-                    dUnit = self.dUnits[sDeviceID]
+                dUnit = sCommand["unit"]
+                self.sConnectionStep = "data sending"
+                if type(dUnit) is dict:
                     self.sCurrentCommand = sCommand["operation"]
                     # read command
-                    if (self.sCurrentCommand == "readwhole") or (self.sCurrentCommand == "read"):
-                        #self.telnetConn.Send("read -c " + dUnit["circuit"] + " " + dUnit["name"] + "\r\n")
-                        #self.telnetConn.Send("read -c " + dUnit["circuit"] + " " + dUnit["name"] + " " + dUnit["fieldname"] + "." + str(dUnit["fieldindex"]) + "\r\n")
+                    if self.sCurrentCommand == "read":
+                        #self.telnetConn.Send("read -c " + dUnit["circuit"] + " " + dUnit["register"] + "\r\n")
+                        #self.telnetConn.Send("read -c " + dUnit["circuit"] + " " + dUnit["register"] + " " + dUnit["fieldname"] + "." + str(dUnit["fieldindex"]) + "\r\n")
                         # telnet read command in verbose mode
                         sRead = "read "
                         # if no cache
                         if Parameters["Mode4"] == "True" :
                             sRead = sRead + "-f "
-                        sRead = sRead + " -v -c " + dUnit["circuit"] + " " + dUnit["name"] + "\r\n"
+                        sRead = sRead + " -v -c " + dUnit["circuit"] + " " + dUnit["register"] + "\r\n"
                         Domoticz.Debug("Telnet write: " + sRead)
                         self.telnetConn.Send(sRead)
                     # write command
                     elif self.sCurrentCommand == "write":
                         iFieldsCount = dUnit["fieldscount"]
-                        # we have more than one field, retrieve all fields value (from last readwhole) if not too old, modify the field and write
+                        # we have more than one field, retrieve all fields value (from last read) if not too old, modify the field and write
                         if iFieldsCount > 1:
                             if ("fieldsvaluestimestamp" in dUnit) and ((dUnit["fieldsvaluestimestamp"] + self.timeoutConstant) > time.time()):
                                 # fields in a string are separated by ;
@@ -677,22 +685,22 @@ class BasePlugin:
                                     # rebuild the fields for the message, in a string, with ; as separator
                                     sData = ";".join(lData)
                                     # telnet write command
-                                    sWrite = "write -c " + dUnit["circuit"] + " " + dUnit["name"] + " " + sData + "\r\n"
+                                    sWrite = "write -c " + dUnit["circuit"] + " " + dUnit["register"] + " " + sData + "\r\n"
                                     Domoticz.Debug("Telnet write: " + sWrite)
                                     self.telnetConn.Send(sWrite)
                             else:
                                 Domoticz.Error("Data cached is too old or inexistent, won't take the risk to modify many fields at once")
                         else:
                             # telnet write command if only one field in message
-                            sWrite = "write -c " + dUnit["circuit"] + " " + dUnit["name"] + " " + sCommand["value"] + "\r\n"
+                            sWrite = "write -c " + dUnit["circuit"] + " " + dUnit["register"] + " " + sCommand["value"] + "\r\n"
                             Domoticz.Debug("Telnet write: " + sWrite)
                             self.telnetConn.Send(sWrite)
                     # Ignore username and password, I'm not sure when I should authenticate and it can be handled by ACL file directly by ebusd
                     #elif self.sCurrentCommand == "authenticate":
-                        #sWrite = "auth " + Parameters["Username"] + " " + Parameters["Password"] + "\r\n"
-                        #Domoticz.Debug("Telnet write:" + sWrite)
+                            #sWrite = "auth " + Parameters["Username"] + " " + Parameters["Password"] + "\r\n"
+                            #Domoticz.Debug("Telnet write:" + sWrite)
                 else:
-                    Domoticz.Error("Received command for unknow unit: " + sDeviceID)
+                    Domoticz.Error("Received command for unit in error state: " + dUnit)
         # the plugin seems blocked in connecting or data sending step, restart the plugin
         elif (len(self.dqFifo) > 0) and (timeNow > (self.iConnectionTimestamp + self.timeoutConstant)) :
             Domoticz.Error("Timeout during handleFifo, restart plugin")
@@ -711,10 +719,11 @@ class BasePlugin:
                 if self.bStillToLook:
                     self.findDevices()
                 # refresh values of already detected registers
-                for indexUnit, dUnit in self.dUnits.items():
-                    # check this is a real unit (dict) and not a string (error)
-                    if type(dUnit) is dict:
-                        self.read(dUnit["index"])
+                for sMessage in self.dUnits3D:
+                    for sRegister in self.dUnits3D[sMessage]:
+                        # only refresh first found field, read operation will read all declared fields anyway
+                        dUnit = next(iter(self.dUnits3D[sMessage][sRegister].values()))
+                        self.read(dUnit)
                 self.iRefreshTime = timeNow
 
 global _plugin
