@@ -883,7 +883,7 @@ def valueEbusdToDomoticz(dUnit, sFieldValue):
             sValue = "100"
         elif (sLowerFieldValue == "off") or (sLowerFieldValue == "no"):
             iValue = 0
-            sValue = "100"
+            sValue = "0"
         else:
             try:
                 iValue = int(sFieldValue)
