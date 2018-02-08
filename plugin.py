@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.1.4" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.1.5" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default=""/> -->
@@ -62,7 +62,6 @@ class BasePlugin:
     iRefreshRate = None
     # dictionnary of dictonnaries, keyed by deviceid string (circuit:register:fieldindex, for instance "f47:OutsideTemp:0")
     #   "device": object: object corresponding in Devices dict
-    #   "index": integer: Devices index of unit
     #   "circuit": string: circuit name, for instance "f47"
     #   "register": string: register, for instance "OutsideTemp"
     #   "fieldindex": integer: field index (0 based)
@@ -271,7 +270,7 @@ class BasePlugin:
                         if dUnit["fieldindex"] < len(lFieldsValues):
                             sFieldValue = lFieldsValues[dUnit["fieldindex"]]
                             iValue, sValue = valueEbusdToDomoticz(dUnit, sFieldValue)
-                            Devices[dUnit["index"]].Update(nValue=iValue, sValue=sValue, Options=dUnit["domoticzoptions"])
+                            dUnit["device"].Update(nValue=iValue, sValue=sValue, Options=dUnit["domoticzoptions"])
                         else:
                             Domoticz.Error("Field not found in unit dictionaries for circuit " + dUnit["circuit"] + " register " + dUnit["register"] + " field " + str(dUnit["fieldindex"]) + " for value " + sReadValue)
                 else:
@@ -448,7 +447,7 @@ class BasePlugin:
                                     break
                             
                             # incorporate found or created device to local self.dUnits dictionnary, to keep additionnal parameters used by the plugin
-                            self.dUnits[sDeviceID] = { "device":Devices[iIndexUnit], "index":iIndexUnit, "circuit":sCircuit, "register":sMessage, "fieldindex":iFieldIndex, "fieldscount":iFieldsCount, "options":dOptionsMapping, "reverseoptions":dReverseOptionsMapping, "domoticzoptions": dOptions }
+                            self.dUnits[sDeviceID] = { "device":Devices[iIndexUnit], "circuit":sCircuit, "register":sMessage, "fieldindex":iFieldIndex, "fieldscount":iFieldsCount, "options":dOptionsMapping, "reverseoptions":dReverseOptionsMapping, "domoticzoptions": dOptions }
                             if not sCircuit in self.dUnits3D:
                                 self.dUnits3D[sCircuit] = {}
                             if not sMessage in self.dUnits3D[sCircuit]:
