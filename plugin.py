@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.1.5" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.1.6" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default=""/> -->
@@ -270,7 +270,10 @@ class BasePlugin:
                         if dUnit["fieldindex"] < len(lFieldsValues):
                             sFieldValue = lFieldsValues[dUnit["fieldindex"]]
                             iValue, sValue = valueEbusdToDomoticz(dUnit, sFieldValue)
-                            dUnit["device"].Update(nValue=iValue, sValue=sValue, Options=dUnit["domoticzoptions"])
+                            if dUnit["device"] is not None:
+                                dUnit["device"].Update(nValue=iValue, sValue=sValue, Options=dUnit["domoticzoptions"])
+                            else:
+                                Domoticz.Error("Received unexpected value " + sReadValue + " for device not anymore in dictionnary")
                         else:
                             Domoticz.Error("Field not found in unit dictionaries for circuit " + dUnit["circuit"] + " register " + dUnit["register"] + " field " + str(dUnit["fieldindex"]) + " for value " + sReadValue)
                 else:
@@ -376,9 +379,12 @@ class BasePlugin:
                             if (sFieldType == "switch") and bWritable:
                                 sTypeName = "Switch"
                             # selector switch type
-                            if ("values" in dFieldDefs) and bWritable:
+                            if ("values" in dFieldDefs):
+                                if bWritable:
+                                    sTypeName = "Selector Switch"
+                                else:
+                                    sTypeName = "Text"
                                 dValues = dFieldDefs["values"]
-                                sTypeName = "Selector Switch"
                                 sLevelActions = "|"
                                 sLevelNames = "|"
                                 for iIndexValue, sValue in enumerate(sorted(dValues.values())):
@@ -388,7 +394,10 @@ class BasePlugin:
                                     sLevelNames += str(sValue)
                                     iIndexValue += 1
                                     iIndexValue *= 10
-                                    dOptionsMapping[sValue] = iIndexValue
+                                    if bWritable:
+                                        dOptionsMapping[sValue] = iIndexValue
+                                    else:
+                                        dOptionsMapping[sValue] = sValue
                                     dReverseOptionsMapping[iIndexValue] = sValue
                                 Domoticz.Debug("LevelNames for Domoticz are " + sLevelNames)
                                 dOptions = {"LevelActions": sLevelActions, "LevelNames": sLevelNames, "LevelOffHidden": "true", "SelectorStyle": "1"}
