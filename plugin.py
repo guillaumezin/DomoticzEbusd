@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.1.6" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.1.7" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default=""/> -->
@@ -35,15 +35,83 @@
 </plugin>
 """
 
-# TODO : gérer la casse = tout passer en minuscule : from requests import CaseInsensitiveDict
-# TODO : gérer écriture des autres types de champs
-
 # https://www.domoticz.com/wiki/Developing_a_Python_plugin
 
 import Domoticz
 import json
 import time
 from collections import deque
+from collections import OrderedDict
+import collections
+
+# https://github.com/requests/requests/blob/master/requests/structures.py
+class CaseInsensitiveDict(collections.MutableMapping):
+    """A case-insensitive ``dict``-like object.
+    Implements all methods and operations of
+    ``collections.MutableMapping`` as well as dict's ``copy``. Also
+    provides ``lower_items``.
+    All keys are expected to be strings. The structure remembers the
+    case of the last key to be set, and ``iter(instance)``,
+    ``keys()``, ``items()``, ``iterkeys()``, and ``iteritems()``
+    will contain case-sensitive keys. However, querying and contains
+    testing is case insensitive::
+        cid = CaseInsensitiveDict()
+        cid['Accept'] = 'application/json'
+        cid['aCCEPT'] == 'application/json'  # True
+        list(cid) == ['Accept']  # True
+    For example, ``headers['content-encoding']`` will return the
+    value of a ``'Content-Encoding'`` response header, regardless
+    of how the header name was originally stored.
+    If the constructor, ``.update``, or equality comparison
+    operations are given keys that have equal ``.lower()``s, the
+    behavior is undefined.
+    """
+
+    def __init__(self, data=None, **kwargs):
+        self._store = OrderedDict()
+        if data is None:
+            data = {}
+        self.update(data, **kwargs)
+
+    def __setitem__(self, key, value):
+        # Use the lowercased key for lookups, but store the actual
+        # key alongside the value.
+        self._store[key.lower()] = (key, value)
+
+    def __getitem__(self, key):
+        return self._store[key.lower()][1]
+
+    def __delitem__(self, key):
+        del self._store[key.lower()]
+
+    def __iter__(self):
+        return (casedkey for casedkey, mappedvalue in self._store.values())
+
+    def __len__(self):
+        return len(self._store)
+
+    def lower_items(self):
+        """Like iteritems(), but with all lowercase keys."""
+        return (
+            (lowerkey, keyval[1])
+            for (lowerkey, keyval)
+            in self._store.items()
+        )
+
+    def __eq__(self, other):
+        if isinstance(other, collections.Mapping):
+            other = CaseInsensitiveDict(other)
+        else:
+            return NotImplemented
+        # Compare insensitively
+        return dict(self.lower_items()) == dict(other.lower_items())
+
+    # Copy is required
+    def copy(self):
+        return CaseInsensitiveDict(self._store.values())
+
+    def __repr__(self):
+        return str(dict(self.items()))
 
 class BasePlugin:
     # boolean to check that we are started, to prevent error messages when disabling or restarting the plugin
@@ -116,13 +184,13 @@ class BasePlugin:
         else:
             Domoticz.Debug("Find")
             # we connect with def and write to get complete list of fields and writable registers
-            sendData = { 'Verb' : 'GET',
-                        'URL'  : '/data?def&write',
-                        'Headers' : { 'Content-Type': 'text/xml; charset=utf-8', \
-                                        'Connection': 'keep-alive', \
-                                        'Accept': 'Content-Type: text/html; charset=UTF-8', \
-                                        'Host': Parameters["Address"]+":"+Parameters["Mode1"], \
-                                        'User-Agent':'Domoticz/1.0' }
+            sendData = { "Verb" : "GET",
+                        "URL"  : "/data?def&write",
+                        "Headers" : { "Content-Type": "text/xml; charset=utf-8", \
+                                        "Connection": "keep-alive", \
+                                        "Accept": "Content-Type: text/html; charset=UTF-8", \
+                                        "Host": Parameters["Address"]+":"+Parameters["Mode1"], \
+                                        "User-Agent":"Domoticz/1.0" }
                        }
             self.jsonConn.Send(sendData)            
      
@@ -244,8 +312,8 @@ class BasePlugin:
                 # Split received fields by ;
                 sFields = lParams[2].split(";")
                 lFieldsValues = []
-                sCircuit = lParams[0]
-                sRegister = lParams[1]
+                sCircuit = lParams[0].lower()
+                sRegister = lParams[1].lower()
                 # Look for corresponding circuit and register
                 if (sCircuit in self.dUnits3D) and (sRegister in self.dUnits3D[sCircuit]):
                     # Extract read fields
@@ -287,9 +355,9 @@ class BasePlugin:
     # parse JSON data received from ebusd
     #   sData: string: data received
     def parseJson(self, sData):
-        oJson = json.loads(sData)
+        dJson = json.loads(sData, object_pairs_hook= lambda dict: CaseInsensitiveDict(dict))
         # register are separated with a space
-        lUnits = Parameters["Mode2"].split(" ")
+        lUnits = Parameters["Mode2"].lower().split(" ")
         iKey = 0
         # enumerate with 0 based integer and register name (sDeviceID)
         for sDeviceID in lUnits:
@@ -306,167 +374,185 @@ class BasePlugin:
                     sCircuit = lPath[0]
                     sMessage = lPath[1]
                     Domoticz.Debug("Look for circuit " + sCircuit + " register " + sMessage + " in JSON data")
-                    # if no fielnumber, default to 0
-                    if len(lPath) == 2:
-                        iFieldIndex = 0
-                        sFieldIndex = "0"
-                        sDeviceID += ":0"
-                    else:
-                        # try to get fieldnumber, if not an integer, throw an error and continue for loop
-                        try:
-                            sFieldIndex = lPath[2]
-                            iFieldIndex = int(sFieldIndex)
-                        except ValueError:
-                            Domoticz.Error("Field number of device " + sDeviceID + " is not set correctly")
-                            self.dUnits[sDeviceID] = "field number error"
-                            continue
+                    if (sCircuit in dJson) :
+                        Domoticz.Debug("Circuit " + sCircuit + " found")
+                        if ("messages" in dJson[sCircuit]) and (sMessage in dJson[sCircuit]["messages"]) :
+                            Domoticz.Debug("Register " + sMessage + " found")
+                        
                     # look for circuit/message in JSON, if not found, we will rescan later in case register not yet available on ebus messaging system
-                    Domoticz.Debug("Look for field number " + sFieldIndex + " in JSON data")
                     self.bStillToLook = False
-                    if (sCircuit in oJson) and ("messages" in oJson[sCircuit]) and (sMessage in oJson[sCircuit]["messages"]):
+                    if (sCircuit in dJson) and ("messages" in dJson[sCircuit]) and (sMessage in dJson[sCircuit]["messages"]):
                         Domoticz.Debug("Found")
                         # check if writable
                         sWKey = sMessage + "-w"
-                        if (not (Parameters["Mode5"] == "True")) and (sWKey in oJson[sCircuit]["messages"]) and ("write" in oJson[sCircuit]["messages"][sWKey]) and oJson[sCircuit]["messages"][sWKey]["write"] :
+                        if (not (Parameters["Mode5"] == "True")) and (sWKey in dJson[sCircuit]["messages"]) and ("write" in dJson[sCircuit]["messages"][sWKey]) and dJson[sCircuit]["messages"][sWKey]["write"] :
                             Domoticz.Debug("Writable")
-                            dMessage = oJson[sCircuit]["messages"][sWKey]
+                            dMessage = dJson[sCircuit]["messages"][sWKey]
                             bWritable = True
                         else:
-                            dMessage = oJson[sCircuit]["messages"][sMessage]
+                            dMessage = dJson[sCircuit]["messages"][sMessage]
                             bWritable = False
                         # look at fielddefs
-                        if ("fielddefs" in dMessage) and (iFieldIndex >= 0) and (iFieldIndex < len(dMessage["fielddefs"])):
-                            iFieldsCount = len(dMessage["fielddefs"])
-                            #flen = len(dMessage["fielddefs"])
-                            #if bWritable and (flen > 1):
-                                #Domoticz.Error("Register " + sCircuit + "-" + sMessage + " has " + str(flen) + " fields and is writable, more than one field and writable isn't supported yet, the register will be read only")
-                                #bWritable = False
-                            #flen = len(dMessage["fielddefs"])
-                            #if bWritable and (flen > 1):
-                                #Domoticz.Error("Register " + sCircuit + "-" + sMessage + " has " + str(flen) + " fields and is writable, more than one field and writable isn't supported yet, the register will be read only")
-                                #bWritable = False
-                                
-                            dFieldDefs = dMessage['fielddefs'][iFieldIndex]
-                            sFieldType = getFieldType(dFieldDefs["unit"], dFieldDefs["name"], dFieldDefs["type"])
-                            # ignore type
-                            if (sFieldType == "ignore"):
-                                    Domoticz.Error("Device " + sDeviceID + " is declared as ignore type in ebusd configuration")
-                                    # error on this item, mark device as erroneous and go to next item
-                                    self.dUnits[sDeviceID] = "device ignored"
-                                    continue                               
-                           
-                            #look for other fields to ignore and adjust index and count
-                            for iAllFieldsIndex, dAllFieldDefs in enumerate(dMessage['fielddefs']):
-                                sAllFieldType = getFieldType(dAllFieldDefs["unit"], dAllFieldDefs["name"], dAllFieldDefs["type"])
-                                if sAllFieldType == "ignore":
-                                    # decrement fields count
-                                    iFieldsCount -= 1
-                                    # decrement field index if field to ignore is before field we are interested into
-                                    if iAllFieldsIndex < iFieldIndex:
-                                        iFieldIndex -= 1
+                        # if no fielnumber, default to 0
+                        if len(lPath) == 2:
+                            iFieldIndex = 0
+                            sFieldIndex = "0"
+                            sDeviceID += ":0"
+                            sDeviceIntegerID = sDeviceID
+                            Domoticz.Debug("Field set to 0 by default")
+                        else:
+                            # try to get fieldnumber, if not an integer, try by name
+                            sFieldIndex = lPath[2]
+                            Domoticz.Debug("Look for field " + sFieldIndex + " in JSON data")
+                            if sFieldIndex.isdigit():
+                                iFieldIndex = int(sFieldIndex)
+                                sDeviceIntegerID = sDeviceID
+                                if (not ("fielddefs" in dMessage)) or (iFieldIndex >= len(dMessage["fielddefs"])):
+                                    Domoticz.Error("Field number of device " + sDeviceID + " is not set correctly")
+                                    self.dUnits[sDeviceID] = "field number error"
+                                    continue
+                            else:
+                                iFieldIndex = -1
+                                if "fielddefs" in dMessage:
+                                    for iAllFieldsIndex, dAllFieldDefs in enumerate(dMessage["fielddefs"]):
+                                        if dAllFieldDefs["name"].lower() == sFieldIndex:
+                                            iFieldIndex = iAllFieldsIndex
+                                            sDeviceIntegerID = sCircuit + ":" + sCircuit + ":" + str(iFieldIndex)
+                                            Domoticz.Debug("Field number of device " + sDeviceID + " is " + str(iFieldIndex))
+                                            break
+                                if iFieldIndex < 0:
+                                    Domoticz.Error("Field name of device " + sDeviceID + " is not set correctly")
+                                    self.dUnits[sDeviceID] = "field name error"
+                                    continue
+                        iFieldsCount = len(dMessage["fielddefs"])
+                        #flen = len(dMessage["fielddefs"])
+                        #if bWritable and (flen > 1):
+                            #Domoticz.Error("Register " + sCircuit + "-" + sMessage + " has " + str(flen) + " fields and is writable, more than one field and writable isn't supported yet, the register will be read only")
+                            #bWritable = False
+                        #flen = len(dMessage["fielddefs"])
+                        #if bWritable and (flen > 1):
+                            #Domoticz.Error("Register " + sCircuit + "-" + sMessage + " has " + str(flen) + " fields and is writable, more than one field and writable isn't supported yet, the register will be read only")
+                            #bWritable = False
+                            
+                        dFieldDefs = dMessage["fielddefs"][iFieldIndex]
+                        sFieldType = getFieldType(dFieldDefs["unit"], dFieldDefs["name"], dFieldDefs["type"])
+                        # ignore type
+                        if (sFieldType == "ignore"):
+                                Domoticz.Error("Device " + sDeviceID + " is declared as ignore type in ebusd configuration")
+                                # error on this item, mark device as erroneous and go to next item
+                                self.dUnits[sDeviceID] = "device ignored"
+                                continue                               
+                        
+                        #look for other fields to ignore and adjust index and count
+                        for iAllFieldsIndex, dAllFieldDefs in enumerate(dMessage["fielddefs"]):
+                            sAllFieldType = getFieldType(dAllFieldDefs["unit"], dAllFieldDefs["name"], dAllFieldDefs["type"])
+                            if sAllFieldType == "ignore":
+                                # decrement fields count
+                                iFieldsCount -= 1
+                                # decrement field index if field to ignore is before field we are interested into
+                                if iAllFieldsIndex < iFieldIndex:
+                                    iFieldIndex -= 1
 
-                            sTypeName = ""
-                            dValues = None
-                            dOptions = {}
-                            dOptionsMapping = {}
-                            dReverseOptionsMapping = {}
-                            # now we try to get the best match between domoticz sensor and ebusd field type
-                            # https://github.com/domoticz/domoticz/blob/master/hardware/hardwaretypes.h ligne 42
-                            # https://github.com/domoticz/domoticz/blob/master/hardware/plugins/PythonObjects.cpp ligne 410
-                            sFieldType = getFieldType(dFieldDefs["unit"], dFieldDefs["name"], dFieldDefs["type"])
-                            Domoticz.Debug("Field is type " + sFieldType)
-                            # on/off type
-                            if (sFieldType == "switch") and bWritable:
-                                sTypeName = "Switch"
-                            # selector switch type
-                            if ("values" in dFieldDefs):
-                                if bWritable:
-                                    sTypeName = "Selector Switch"
-                                else:
-                                    sTypeName = "Text"
-                                dValues = dFieldDefs["values"]
-                                sLevelActions = "|"
-                                sLevelNames = "|"
-                                for iIndexValue, sValue in enumerate(sorted(dValues.values())):
-                                    if iIndexValue > 0:
-                                        sLevelActions += "|"
-                                        sLevelNames += "|"
-                                    sLevelNames += str(sValue)
-                                    iIndexValue += 1
-                                    iIndexValue *= 10
-                                    if bWritable:
-                                        dOptionsMapping[sValue] = iIndexValue
-                                    else:
-                                        dOptionsMapping[sValue] = sValue
-                                    dReverseOptionsMapping[iIndexValue] = sValue
-                                Domoticz.Debug("LevelNames for Domoticz are " + sLevelNames)
-                                dOptions = {"LevelActions": sLevelActions, "LevelNames": sLevelNames, "LevelOffHidden": "true", "SelectorStyle": "1"}
-                            # number type, probably to improve
-                            elif (sFieldType == "number") or (sFieldType == "custom"):
-                                sTypeName = "Custom"
-                                dOptions = { "Custom": "1;" + str(dFieldDefs["unit"])}
-                            # setpoint type
-                            elif (sFieldType == "temperature") and bWritable:
-                                iMainType = 0xF2
-                                iSubtype = 0x01
-                            # read-only temperature type
-                            elif (sFieldType == "temperature"):
-                                sTypeName = "Temperature"
-                            # pressure type
-                            elif (sFieldType == "pressure"):
-                                sTypeName = "Pressure"
-                            # else text type
+                        sTypeName = ""
+                        dValues = None
+                        dOptions = {}
+                        dOptionsMapping = {}
+                        dReverseOptionsMapping = {}
+                        # now we try to get the best match between domoticz sensor and ebusd field type
+                        # https://github.com/domoticz/domoticz/blob/master/hardware/hardwaretypes.h ligne 42
+                        # https://github.com/domoticz/domoticz/blob/master/hardware/plugins/PythonObjects.cpp ligne 410
+                        sFieldType = getFieldType(dFieldDefs["unit"], dFieldDefs["name"], dFieldDefs["type"])
+                        Domoticz.Debug("Field is type " + sFieldType)
+                        # on/off type
+                        if (sFieldType == "switch") and bWritable:
+                            sTypeName = "Switch"
+                        # selector switch type
+                        if ("values" in dFieldDefs):
+                            if bWritable:
+                                sTypeName = "Selector Switch"
                             else:
                                 sTypeName = "Text"
-                                
-                            # check if device is already in domoticz database, based on deviceid
-                            bFound = False
-                            for iIndexUnit, currentDevice in Devices.items():
-                                if currentDevice.DeviceID == sDeviceID:
-                                    # log device found, with dFieldDefs['comment'] giving hints on how to use register
-                                    Domoticz.Log("Device " + currentDevice.Name + " unit " + str(iIndexUnit) + " and deviceid " + sDeviceID + " detected: " + dFieldDefs['comment'])
-                                    # if found, continue loop to next item
-                                    bFound = True
-                                    break
-
-                            # not in database: add device
-                            if not bFound:
-                                # look for free index in Devices
-                                for iIndexUnit in range(1, 257):
-                                    if not iIndexUnit in Devices:
-                                        break
-                                # domoticz database doesn't handle more than 256 devices per plugin !
-                                if iIndexUnit <= 256:
-                                    # Create name
-                                    sCompleteName = sDeviceID
-                                    if dFieldDefs["name"] != "":
-                                        sCompleteName += " - " + dFieldDefs["name"]
-                                    # Create device based on sTypeName or iMainType
-                                    if sTypeName != "":
-                                        # create device, log dFieldDefs['comment'] giving hints on how to use register
-                                        Domoticz.Log("Add device " + sDeviceID + " unit " + str(iIndexUnit) + " as type " + sTypeName + ": " + dFieldDefs['comment'])
-                                        Domoticz.Device(Name=sCompleteName,  Unit=iIndexUnit, TypeName=sTypeName, Options=dOptions, Used=1, DeviceID=sDeviceID).Create()
-                                    else:
-                                        # create device, log dFieldDefs['comment'] giving hints on how to use register
-                                        Domoticz.Log("Add device " + sDeviceID + " unit " + str(iIndexUnit) + " as type " + str(iMainType) + " and subtype " + str(iSubtype) + ": " + dFieldDefs['comment'])
-                                        Domoticz.Device(Name=sCompleteName,  Unit=iIndexUnit, Type=iMainType, Subtype=iSubtype, Options=dOptions, Used=1, DeviceID=sDeviceID).Create()
+                            dValues = dFieldDefs["values"]
+                            sLevelActions = "|"
+                            sLevelNames = "|"
+                            for iIndexValue, sValue in enumerate(sorted(dValues.values())):
+                                if iIndexValue > 0:
+                                    sLevelActions += "|"
+                                    sLevelNames += "|"
+                                sLevelNames += str(sValue)
+                                iIndexValue += 1
+                                iIndexValue *= 10
+                                if bWritable:
+                                    dOptionsMapping[sValue] = iIndexValue
                                 else:
-                                    Domoticz.Error("Too many devices, " + sDeviceID + " cannot be added")
-                                    self.dUnits[sDeviceID] = "too many devices"
-                                    break
-                            
-                            # incorporate found or created device to local self.dUnits dictionnary, to keep additionnal parameters used by the plugin
-                            self.dUnits[sDeviceID] = { "device":Devices[iIndexUnit], "circuit":sCircuit, "register":sMessage, "fieldindex":iFieldIndex, "fieldscount":iFieldsCount, "options":dOptionsMapping, "reverseoptions":dReverseOptionsMapping, "domoticzoptions": dOptions }
-                            if not sCircuit in self.dUnits3D:
-                                self.dUnits3D[sCircuit] = {}
-                            if not sMessage in self.dUnits3D[sCircuit]:
-                                self.dUnits3D[sCircuit][sMessage] = {}
-                            self.dUnits3D[sCircuit][sMessage][iFieldIndex] = self.dUnits[sDeviceID]
-                            # place a read command in the queue for each device to refresh its value asap
-                            self.read(self.dUnits[sDeviceID])
+                                    dOptionsMapping[sValue] = sValue
+                                dReverseOptionsMapping[iIndexValue] = sValue
+                            Domoticz.Debug("LevelNames for Domoticz are " + sLevelNames)
+                            dOptions = {"LevelActions": sLevelActions, "LevelNames": sLevelNames, "LevelOffHidden": "true", "SelectorStyle": "1"}
+                        # number type, probably to improve
+                        elif (sFieldType == "number") or (sFieldType == "custom"):
+                            sTypeName = "Custom"
+                            dOptions = { "Custom": "1;" + str(dFieldDefs["unit"])}
+                        # setpoint type
+                        elif (sFieldType == "temperature") and bWritable:
+                            iMainType = 0xF2
+                            iSubtype = 0x01
+                        # read-only temperature type
+                        elif (sFieldType == "temperature"):
+                            sTypeName = "Temperature"
+                        # pressure type
+                        elif (sFieldType == "pressure"):
+                            sTypeName = "Pressure"
+                        # else text type
                         else:
-                            Domoticz.Error("Device " + sDeviceID + " has no field " + sFieldIndex)
-                            self.dUnits[sDeviceID] = "incorrect field"
+                            sTypeName = "Text"
+                            
+                        # check if device is already in domoticz database, based on deviceid
+                        bFound = False
+                        for iIndexUnit, currentDevice in Devices.items():
+                            # .lower() for backward compatibility
+                            if currentDevice.DeviceID.lower() == sDeviceIntegerID:
+                                # log device found, with dFieldDefs["comment"] giving hints on how to use register
+                                Domoticz.Log("Device " + currentDevice.Name + " unit " + str(iIndexUnit) + " and deviceid " + sDeviceID + " detected: " + dFieldDefs["comment"])
+                                # if found, continue loop to next item
+                                bFound = True
+                                break
+
+                        # not in database: add device
+                        if not bFound:
+                            # look for free index in Devices
+                            for iIndexUnit in range(1, 257):
+                                if not iIndexUnit in Devices:
+                                    break
+                            # domoticz database doesn't handle more than 256 devices per plugin !
+                            if iIndexUnit <= 256:
+                                # Create name
+                                sCompleteName = sDeviceID
+                                if dFieldDefs["name"] != "":
+                                    sCompleteName += " - " + dFieldDefs["name"]
+                                # Create device based on sTypeName or iMainType
+                                if sTypeName != "":
+                                    # create device, log dFieldDefs["comment"] giving hints on how to use register
+                                    Domoticz.Log("Add device " + sDeviceID + " (" + sDeviceIntegerID + ") unit " + str(iIndexUnit) + " as type " + sTypeName + ": " + dFieldDefs["comment"])
+                                    Domoticz.Device(Name=sCompleteName,  Unit=iIndexUnit, TypeName=sTypeName, Options=dOptions, Used=1, DeviceID=sDeviceIntegerID).Create()
+                                else:
+                                    # create device, log dFieldDefs["comment"] giving hints on how to use register
+                                    Domoticz.Log("Add device " + sDeviceID + " (" + sDeviceIntegerID + ") unit " + str(iIndexUnit) + " as type " + str(iMainType) + " and subtype " + str(iSubtype) + ": " + dFieldDefs["comment"])
+                                    Domoticz.Device(Name=sCompleteName,  Unit=iIndexUnit, Type=iMainType, Subtype=iSubtype, Options=dOptions, Used=1, DeviceID=sDeviceIntegerID).Create()
+                            else:
+                                Domoticz.Error("Too many devices, " + sDeviceID + " cannot be added")
+                                self.dUnits[sDeviceID] = "too many devices"
+                                break
+                        
+                        # incorporate found or created device to local self.dUnits dictionnary, to keep additionnal parameters used by the plugin
+                        self.dUnits[sDeviceID] = { "device":Devices[iIndexUnit], "circuit":sCircuit, "register":sMessage, "fieldindex":iFieldIndex, "fieldscount":iFieldsCount, "options":dOptionsMapping, "reverseoptions":dReverseOptionsMapping, "domoticzoptions": dOptions }
+                        if not sCircuit in self.dUnits3D:
+                            self.dUnits3D[sCircuit] = {}
+                        if not sMessage in self.dUnits3D[sCircuit]:
+                            self.dUnits3D[sCircuit][sMessage] = {}
+                        self.dUnits3D[sCircuit][sMessage][iFieldIndex] = self.dUnits[sDeviceID]
+                        # place a read command in the queue for each device to refresh its value asap
+                        self.read(self.dUnits[sDeviceID])
                     else:
                         # we will rescan later in case register not yet available on ebus messaging system
                         Domoticz.Log("Device " + sDeviceID + " not found, will try again later")
@@ -568,15 +654,15 @@ class BasePlugin:
         if Command != "udevice":
             if self.isStarted:
                 # add write to the queue
-                self.write(Unit, Command, Level, '')
+                self.write(Unit, Command, Level, "")
 
     def onUpdate(self, Unit, Command, Details):
-        if (Details is not None) and ('sValue' in Details):
-            sValue = Details['sValue']
+        if (Details is not None) and ("sValue" in Details):
+            sValue = Details["sValue"]
         else:
-            sValue = ''
-        if (Details is not None) and ('iValue' in Details):
-            iValue = Details['iValue']
+            sValue = ""
+        if (Details is not None) and ("iValue" in Details):
+            iValue = Details["iValue"]
 
         Domoticz.Debug("onUpdate called for unit " + str(Unit) + ": Parameter '" + str(Command) + "', iValue: " + str(iValue) + ", sValue: " + str(sValue))
         if Command == "udevice":
