@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.1.7" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.1.8" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default=""/> -->
@@ -692,8 +692,8 @@ class BasePlugin:
     #   ifLevel: integer or float: value to write
     def write(self, iUnitNumber, sCommand, ifValue, sValue):
         Domoticz.Debug("write called for unit " + str(iUnitNumber) + " command " + sCommand + " value " + str(ifValue) + " / " + sValue)
-        if (iUnitNumber in Devices) and (Devices[iUnitNumber].DeviceID in self.dUnits):
-            dUnit = self.dUnits[Devices[iUnitNumber].DeviceID]
+        if (iUnitNumber in Devices) and (Devices[iUnitNumber].DeviceID.lower() in self.dUnits):
+            dUnit = self.dUnits[Devices[iUnitNumber].DeviceID.lower()]
             if type(dUnit) is dict:
                 # convert domoticz command and level to ebusd string value
                 sValue = valueDomoticzToEbusd(dUnit, sCommand, ifValue, sValue, Devices[iUnitNumber].nValue, Devices[iUnitNumber].sValue)
@@ -970,6 +970,12 @@ def valueEbusdToDomoticz(dUnit, sFieldValue):
             # iValue from GetLightStatus in RFXName.cpp and hardwaretypes.h
             iValue = 2
             sValue = str(dOptionsMapping[sFieldValue])
+        else:
+            try:
+                iValue = int(sFieldValue)
+            except ValueError:
+                iValue = 0
+            sValue = sFieldValue
     else:
         sLowerFieldValue = sFieldValue.lower()
         if (sLowerFieldValue == "on") or (sLowerFieldValue == "yes"):
