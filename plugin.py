@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.1.8" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.1.9" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default=""/> -->
@@ -139,12 +139,14 @@ class BasePlugin:
     #   "domoticzoptions": dictionnary: options send during domoticz device type selector switch creation and update
     #   "fieldsvalues": string: fields values read after "readwhole" operation
     #   "fieldsvaluestimestamp": integer: time when fields values have been updated
-    dUnits = None
+    dUnitsByDeviceID = None
+    # same dictionnary, but keyed by unit number
+    dUnitsByUnitNumber = None
     # same dictionnary, but keyed by 3 dimensions: dUnits3D[circuit][register][fieldindex]
     dUnits3D = None
     # dequeue of dictionnaries
     #   "operation": string: can be "read", "readwhole", "write", "authenticate"
-    #   "unit": dict contained in dUnits
+    #   "unit": dict contained in dUnitsByUnitNumber
     #   "value": string: value to write in ebusd format, used only for "write" operation
     dqFifo = None
     # string that contains the connection step: "idle", then "connecting", then "connected", then "data sending"
@@ -160,7 +162,8 @@ class BasePlugin:
         self.isStarted = False
         self.telnetConn = None
         self.jsonConn = None
-        self.dUnits = {}
+        self.dUnitsByDeviceID = {}
+        self.dUnitsByUnitNumber = {}
         self.dUnits3D = {}
         self.sBuffer = ""
         self.bStillToLook = True
@@ -361,15 +364,15 @@ class BasePlugin:
         iKey = 0
         # enumerate with 0 based integer and register name (sDeviceID)
         for sDeviceID in lUnits:
-            # continue only if sDeviceID not already in self.dUnits
-            if (len(sDeviceID) > 0) and not (sDeviceID in self.dUnits):
+            # continue only if sDeviceID not already in self.dUnitsByDeviceID
+            if (len(sDeviceID) > 0) and not (sDeviceID in self.dUnitsByDeviceID):
                 # now split device in circuit/message/fieldnumber
                 #lPath = sDeviceID.split("-")
                 lPath = sDeviceID.split(":")
                 # if it seems incorrect
                 if ((len(lPath)) < 2) or ((len(lPath)) > 3):
                     Domoticz.Error("Register definition of " + sDeviceID + " is not correct, it must be for instance f47:Hc1DayTemp or f47:Hc1DayTemp:0")
-                    self.dUnits[sDeviceID] = "length error"
+                    self.dUnitsByDeviceID[sDeviceID] = "length error"
                 else:
                     sCircuit = lPath[0]
                     sMessage = lPath[1]
@@ -409,7 +412,7 @@ class BasePlugin:
                                 sDeviceIntegerID = sDeviceID
                                 if (not ("fielddefs" in dMessage)) or (iFieldIndex >= len(dMessage["fielddefs"])):
                                     Domoticz.Error("Field number of device " + sDeviceID + " is not set correctly")
-                                    self.dUnits[sDeviceID] = "field number error"
+                                    self.dUnitsByDeviceID[sDeviceID] = "field number error"
                                     continue
                             else:
                                 iFieldIndex = -1
@@ -422,7 +425,7 @@ class BasePlugin:
                                             break
                                 if iFieldIndex < 0:
                                     Domoticz.Error("Field name of device " + sDeviceID + " is not set correctly")
-                                    self.dUnits[sDeviceID] = "field name error"
+                                    self.dUnitsByDeviceID[sDeviceID] = "field name error"
                                     continue
                         iFieldsCount = len(dMessage["fielddefs"])
                         #flen = len(dMessage["fielddefs"])
@@ -440,7 +443,7 @@ class BasePlugin:
                         if (sFieldType == "ignore"):
                                 Domoticz.Error("Device " + sDeviceID + " is declared as ignore type in ebusd configuration")
                                 # error on this item, mark device as erroneous and go to next item
-                                self.dUnits[sDeviceID] = "device ignored"
+                                self.dUnitsByDeviceID[sDeviceID] = "device ignored"
                                 continue                               
                         
                         #look for other fields to ignore and adjust index and count
@@ -541,18 +544,19 @@ class BasePlugin:
                                     Domoticz.Device(Name=sCompleteName,  Unit=iIndexUnit, Type=iMainType, Subtype=iSubtype, Options=dOptions, Used=1, DeviceID=sDeviceIntegerID).Create()
                             else:
                                 Domoticz.Error("Too many devices, " + sDeviceID + " cannot be added")
-                                self.dUnits[sDeviceID] = "too many devices"
+                                self.dUnitsByDeviceID[sDeviceID] = "too many devices"
                                 break
                         
-                        # incorporate found or created device to local self.dUnits dictionnary, to keep additionnal parameters used by the plugin
-                        self.dUnits[sDeviceID] = { "device":Devices[iIndexUnit], "circuit":sCircuit, "register":sMessage, "fieldindex":iFieldIndex, "fieldscount":iFieldsCount, "options":dOptionsMapping, "reverseoptions":dReverseOptionsMapping, "domoticzoptions": dOptions }
+                        # incorporate found or created device to local self.dUnits dictionnaries, to keep additionnal parameters used by the plugin
+                        self.dUnitsByDeviceID[sDeviceID] = { "device":Devices[iIndexUnit], "circuit":sCircuit, "register":sMessage, "fieldindex":iFieldIndex, "fieldscount":iFieldsCount, "options":dOptionsMapping, "reverseoptions":dReverseOptionsMapping, "domoticzoptions": dOptions }
+                        self.dUnitsByUnitNumber[iIndexUnit] = self.dUnitsByDeviceID[sDeviceID]
                         if not sCircuit in self.dUnits3D:
                             self.dUnits3D[sCircuit] = {}
                         if not sMessage in self.dUnits3D[sCircuit]:
                             self.dUnits3D[sCircuit][sMessage] = {}
-                        self.dUnits3D[sCircuit][sMessage][iFieldIndex] = self.dUnits[sDeviceID]
+                        self.dUnits3D[sCircuit][sMessage][iFieldIndex] = self.dUnitsByDeviceID[sDeviceID]
                         # place a read command in the queue for each device to refresh its value asap
-                        self.read(self.dUnits[sDeviceID])
+                        self.read(self.dUnitsByDeviceID[sDeviceID])
                     else:
                         # we will rescan later in case register not yet available on ebus messaging system
                         Domoticz.Log("Device " + sDeviceID + " not found, will try again later")
@@ -692,32 +696,29 @@ class BasePlugin:
     #   ifLevel: integer or float: value to write
     def write(self, iUnitNumber, sCommand, ifValue, sValue):
         Domoticz.Debug("write called for unit " + str(iUnitNumber) + " command " + sCommand + " value " + str(ifValue) + " / " + sValue)
-        if (iUnitNumber in Devices) and (Devices[iUnitNumber].DeviceID.lower() in self.dUnits):
-            dUnit = self.dUnits[Devices[iUnitNumber].DeviceID.lower()]
-            if type(dUnit) is dict:
-                # convert domoticz command and level to ebusd string value
-                sValue = valueDomoticzToEbusd(dUnit, sCommand, ifValue, sValue, Devices[iUnitNumber].nValue, Devices[iUnitNumber].sValue)
-                        
-                # if there are more than one field, we must read all fields, modify the required field and write back all fields at once
-                iFieldsCount = dUnit["fieldscount"]
-                if iFieldsCount <= 1:
-                    Domoticz.Debug("Will write " + sValue)
-                    self.dqFifo.append({"operation":"write", "unit":dUnit, "value":sValue})
-                    # write then read to update Domoticz interface
-                    self.dqFifo.append({"operation":"read", "unit":dUnit})
-                    # launch commands in the queue
-                    self.handleFifo()
-                else:
-                    Domoticz.Debug("Will write (more than one field) " + sValue)
-                    # read all fields first before write one field when more than one field in the message
-                    self.dqFifo.append({"operation":"read", "unit":dUnit})
-                    self.dqFifo.append({"operation":"write", "unit":dUnit, "value":sValue})
-                    # write then read to update Domoticz interface
-                    self.dqFifo.append({"operation":"read", "unit":dUnit})
-                    # launch commands in the queue
-                    self.handleFifo()
+        if iUnitNumber in self.dUnitsByUnitNumber:
+            dUnit = self.dUnitsByUnitNumber[iUnitNumber]
+            # convert domoticz command and level to ebusd string value
+            sValue = valueDomoticzToEbusd(dUnit, sCommand, ifValue, sValue, Devices[iUnitNumber].nValue, Devices[iUnitNumber].sValue)
+                    
+            # if there are more than one field, we must read all fields, modify the required field and write back all fields at once
+            iFieldsCount = dUnit["fieldscount"]
+            if iFieldsCount <= 1:
+                Domoticz.Debug("Will write " + sValue)
+                self.dqFifo.append({"operation":"write", "unit":dUnit, "value":sValue})
+                # write then read to update Domoticz interface
+                self.dqFifo.append({"operation":"read", "unit":dUnit})
+                # launch commands in the queue
+                self.handleFifo()
             else:
-                Domoticz.Error("Cannot write device " + str(iUnitNumber) + " that is in error state: " + dUnit)
+                Domoticz.Debug("Will write (more than one field) " + sValue)
+                # read all fields first before write one field when more than one field in the message
+                self.dqFifo.append({"operation":"read", "unit":dUnit})
+                self.dqFifo.append({"operation":"write", "unit":dUnit, "value":sValue})
+                # write then read to update Domoticz interface
+                self.dqFifo.append({"operation":"read", "unit":dUnit})
+                # launch commands in the queue
+                self.handleFifo()
         else:
             Domoticz.Error("Cannot write device " + str(iUnitNumber) + " that doesn't exist")
         
