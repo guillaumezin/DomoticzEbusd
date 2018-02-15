@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.1.9" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.2.0" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default=""/> -->
@@ -420,7 +420,7 @@ class BasePlugin:
                                     for iAllFieldsIndex, dAllFieldDefs in enumerate(dMessage["fielddefs"]):
                                         if dAllFieldDefs["name"].lower() == sFieldIndex:
                                             iFieldIndex = iAllFieldsIndex
-                                            sDeviceIntegerID = sCircuit + ":" + sCircuit + ":" + str(iFieldIndex)
+                                            sDeviceIntegerID = sCircuit + ":" + sMessage + ":" + str(iFieldIndex)
                                             Domoticz.Debug("Field number of device " + sDeviceID + " is " + str(iFieldIndex))
                                             break
                                 if iFieldIndex < 0:
