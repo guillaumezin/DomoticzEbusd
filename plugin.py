@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.2.0" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.2.1" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default=""/> -->
@@ -135,6 +135,7 @@ class BasePlugin:
     #   "fieldindex": integer: field index (0 based)
     #   "fieldscount": integer: total number of fields
     #   "options": dictionnary: keyed by ebusd value, contains selector switch level integer value, empty if not selector switch
+	#	"forcerefresh": boolean: for Devices dictionnary update
     #   "reverseoptions": dictionnary: keyed by selector switch level integer valu, contains selector switch ebusd string value, empty if not selector switch
     #   "domoticzoptions": dictionnary: options send during domoticz device type selector switch creation and update
     #   "fieldsvalues": string: fields values read after "readwhole" operation
@@ -341,8 +342,14 @@ class BasePlugin:
                         if dUnit["fieldindex"] < len(lFieldsValues):
                             sFieldValue = lFieldsValues[dUnit["fieldindex"]]
                             iValue, sValue = valueEbusdToDomoticz(dUnit, sFieldValue)
-                            if dUnit["device"] is not None:
-                                dUnit["device"].Update(nValue=iValue, sValue=sValue, Options=dUnit["domoticzoptions"])
+                            oDevice = dUnit["device"]
+                            if oDevice is not None:
+                                # Doesn't seem to be a good idea, if a device is not updated on a regular basis, Domoticz show it in red anyway
+                                #if dUnit["forcerefresh"] or oDevice.TimedOut or (oDevice.nValue != iValue) or (oDevice.sValue != sValue):
+                                    #oDevice.Update(nValue=iValue, sValue=sValue, TimedOut=0, Options=dUnit["domoticzoptions"])
+                                    #dUnit["forcerefresh"] = False
+                                oDevice.Update(nValue=iValue, sValue=sValue, TimedOut=0, Options=dUnit["domoticzoptions"])
+                                dUnit["forcerefresh"] = False
                             else:
                                 Domoticz.Error("Received unexpected value " + sReadValue + " for device not anymore in dictionnary")
                         else:
@@ -400,8 +407,7 @@ class BasePlugin:
                         if len(lPath) == 2:
                             iFieldIndex = 0
                             sFieldIndex = "0"
-                            sDeviceID += ":0"
-                            sDeviceIntegerID = sDeviceID
+                            sDeviceIntegerID = sDeviceID + ":0"
                             Domoticz.Debug("Field set to 0 by default")
                         else:
                             # try to get fieldnumber, if not an integer, try by name
@@ -512,11 +518,11 @@ class BasePlugin:
                             
                         # check if device is already in domoticz database, based on deviceid
                         bFound = False
-                        for iIndexUnit, currentDevice in Devices.items():
+                        for iIndexUnit, oDevice in Devices.items():
                             # .lower() for backward compatibility
-                            if currentDevice.DeviceID.lower() == sDeviceIntegerID:
+                            if oDevice.DeviceID.lower() == sDeviceIntegerID:
                                 # log device found, with dFieldDefs["comment"] giving hints on how to use register
-                                Domoticz.Log("Device " + currentDevice.Name + " unit " + str(iIndexUnit) + " and deviceid " + sDeviceID + " detected: " + dFieldDefs["comment"])
+                                Domoticz.Log("Device " + oDevice.Name + " unit " + str(iIndexUnit) + " and deviceid " + sDeviceID + " detected: " + dFieldDefs["comment"])
                                 # if found, continue loop to next item
                                 bFound = True
                                 break
@@ -536,19 +542,29 @@ class BasePlugin:
                                 # Create device based on sTypeName or iMainType
                                 if sTypeName != "":
                                     # create device, log dFieldDefs["comment"] giving hints on how to use register
-                                    Domoticz.Log("Add device " + sDeviceID + " (" + sDeviceIntegerID + ") unit " + str(iIndexUnit) + " as type " + sTypeName + ": " + dFieldDefs["comment"])
                                     Domoticz.Device(Name=sCompleteName,  Unit=iIndexUnit, TypeName=sTypeName, Options=dOptions, Used=1, DeviceID=sDeviceIntegerID).Create()
+                                    if iIndexUnit in Devices:
+                                        Domoticz.Log("Add device " + sDeviceID + " (" + sDeviceIntegerID + ") unit " + str(iIndexUnit) + " as type " + sTypeName + ": " + dFieldDefs["comment"])
+                                    else:
+                                        Domoticz.Error("Cannot add device " + sDeviceID + " (" + sDeviceIntegerID + ") unit " + str(iIndexUnit) + ". Check in settings that Domoticz is set up to accept new devices")
+                                        self.bStillToLook = True
+                                        break
                                 else:
                                     # create device, log dFieldDefs["comment"] giving hints on how to use register
-                                    Domoticz.Log("Add device " + sDeviceID + " (" + sDeviceIntegerID + ") unit " + str(iIndexUnit) + " as type " + str(iMainType) + " and subtype " + str(iSubtype) + ": " + dFieldDefs["comment"])
                                     Domoticz.Device(Name=sCompleteName,  Unit=iIndexUnit, Type=iMainType, Subtype=iSubtype, Options=dOptions, Used=1, DeviceID=sDeviceIntegerID).Create()
+                                    if iIndexUnit in Devices:
+                                        Domoticz.Log("Add device " + sDeviceID + " (" + sDeviceIntegerID + ") unit " + str(iIndexUnit) + " as type " + str(iMainType) + " and subtype " + str(iSubtype) + ": " + dFieldDefs["comment"])
+                                    else:
+                                        Domoticz.Error("Cannot add device " + sDeviceID + " (" + sDeviceIntegerID + ") unit " + str(iIndexUnit) + ". Check in settings that Domoticz is set up to accept new devices")
+                                        self.bStillToLook = True
+                                        break
                             else:
                                 Domoticz.Error("Too many devices, " + sDeviceID + " cannot be added")
                                 self.dUnitsByDeviceID[sDeviceID] = "too many devices"
                                 break
                         
                         # incorporate found or created device to local self.dUnits dictionnaries, to keep additionnal parameters used by the plugin
-                        self.dUnitsByDeviceID[sDeviceID] = { "device":Devices[iIndexUnit], "circuit":sCircuit, "register":sMessage, "fieldindex":iFieldIndex, "fieldscount":iFieldsCount, "options":dOptionsMapping, "reverseoptions":dReverseOptionsMapping, "domoticzoptions": dOptions }
+                        self.dUnitsByDeviceID[sDeviceID] = { "device":Devices[iIndexUnit], "circuit":sCircuit, "register":sMessage, "fieldindex":iFieldIndex, "fieldscount":iFieldsCount, "options":dOptionsMapping, "reverseoptions":dReverseOptionsMapping, "domoticzoptions": dOptions, "forcerefresh": not bFound }
                         self.dUnitsByUnitNumber[iIndexUnit] = self.dUnitsByDeviceID[sDeviceID]
                         if not sCircuit in self.dUnits3D:
                             self.dUnits3D[sCircuit] = {}
@@ -655,25 +671,16 @@ class BasePlugin:
     def onCommand(self, Unit, Command, Level, Hue):
         Domoticz.Debug("onCommand called for unit " + str(Unit) + ": Parameter '" + str(Command) + "', Level: " + str(Level) + ", Hue: " + str(Hue))
         # if started and not stopping
-        if Command != "udevice":
-            if self.isStarted:
-                # add write to the queue
-                self.write(Unit, Command, Level, "")
+        if self.isStarted:
+            # add write to the queue
+            self.write(Unit, Command, Level, "")
 
-    def onUpdate(self, Unit, Command, Details):
-        if (Details is not None) and ("sValue" in Details):
-            sValue = Details["sValue"]
-        else:
-            sValue = ""
-        if (Details is not None) and ("iValue" in Details):
-            iValue = Details["iValue"]
-
-        Domoticz.Debug("onUpdate called for unit " + str(Unit) + ": Parameter '" + str(Command) + "', iValue: " + str(iValue) + ", sValue: " + str(sValue))
-        if Command == "udevice":
-            # if started and not stopping
-            if self.isStarted:
-                # add write to the queue
-                self.write(Unit, Command, iValue, sValue)
+    def onDeviceModified(self, Unit):
+        Domoticz.Debug("onDeviceModified called for unit " + str(Unit))
+        # if started and not stopping
+        if self.isStarted:
+            # add write to the queue
+            self.write(Unit, "udevice", Devices[Unit].nValue, Devices[Unit].sValue)
 
     def onNotification(self, Name, Subject, Text, Status, Priority, Sound, ImageFile):
         Domoticz.Debug("onNotification called: " + Name + "," + Subject + "," + Text + "," + Status + "," + str(Priority) + "," + Sound + "," + ImageFile)
@@ -721,7 +728,7 @@ class BasePlugin:
                 self.handleFifo()
         else:
             Domoticz.Error("Cannot write device " + str(iUnitNumber) + " that doesn't exist")
-        
+
     # Handle the connection to Telnet port and the command queue
     def handleFifo(self):
         Domoticz.Debug("handleFifo() called")
@@ -768,7 +775,7 @@ class BasePlugin:
                         iFieldsCount = dUnit["fieldscount"]
                         # we have more than one field, retrieve all fields value (from last read) if not too old, modify the field and write
                         if iFieldsCount > 1:
-                            if ("fieldsvaluestimestamp" in dUnit) and ((dUnit["fieldsvaluestimestamp"] + self.timeoutConstant) > time.time()):
+                            if ("fieldsvaluestimestamp" in dUnit) and ((dUnit["fieldsvaluestimestamp"] + self.timeoutConstant) > timeNow):
                                 # fields in a string are separated by ;
                                 lData = dUnit["fieldsvalues"].split(";")
                                 # sanity check
@@ -817,8 +824,22 @@ class BasePlugin:
                 for sMessage in self.dUnits3D:
                     for sRegister in self.dUnits3D[sMessage]:
                         # only refresh first found field, read operation will read all declared fields anyway
-                        dUnit = next(iter(self.dUnits3D[sMessage][sRegister].values()))
-                        self.read(dUnit)
+                        dUnit = next(iter(self.dUnits3D[sMessage][sRegister].values()), None)
+                        if dUnit:
+                            self.read(dUnit)
+                # check for timeouts
+                # Doesn't seem to be a good idea, if a device is not updated on a regular basis, Domoticz show it in red anyway
+                #for iIndexUnit, oDevice in Devices.items():
+                    #bTimedOut = False
+                    #if iIndexUnit in self.dUnitsByUnitNumber:
+                        #dUnit = self.dUnitsByUnitNumber[iIndexUnit]
+                        #if (not ("fieldsvaluestimestamp" in dUnit)) or ((dUnit["fieldsvaluestimestamp"] + (3 * self.iRefreshRate)) < timeNow):
+                            #bTimedOut = True
+                    #else:
+                        #bTimedOut = True
+                    #if bTimedOut:
+                        #Domoticz.Error("Device " + oDevice.Name + " ID " + str(oDevice.ID) + " DeviceID " + oDevice.DeviceID + " timed out")
+                        #oDevice.Update(nValue=oDevice.nValue, sValue=oDevice.sValue, TimedOut=1)
                 self.iRefreshTime = timeNow
 
 global _plugin
@@ -844,9 +865,15 @@ def onCommand(Unit, Command, Level, Hue):
     global _plugin
     _plugin.onCommand(Unit, Command, Level, Hue)
 
-def onUpdate(Unit, Command, Details):
+def onDeviceAdded(Unit):
     global _plugin
-    _plugin.onUpdate(Unit, Command, Details)
+
+def onDeviceModified(Unit):
+    global _plugin
+    _plugin.onDeviceModified(Unit)
+
+def onDeviceRemoved(Unit):
+    global _plugin
 
 def onNotification(Name, Subject, Text, Status, Priority, Sound, ImageFile):
     global _plugin
