@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.2.1" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.2.2" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default=""/> -->
@@ -135,9 +135,11 @@ class BasePlugin:
     #   "fieldindex": integer: field index (0 based)
     #   "fieldscount": integer: total number of fields
     #   "options": dictionnary: keyed by ebusd value, contains selector switch level integer value, empty if not selector switch
-	#	"forcerefresh": boolean: for Devices dictionnary update
+    #	"forcerefresh": boolean: for Devices dictionnary update
+    #   "updateregularly": boolean: this device must update regularly Domoticz to prevent timeout
     #   "reverseoptions": dictionnary: keyed by selector switch level integer valu, contains selector switch ebusd string value, empty if not selector switch
     #   "domoticzoptions": dictionnary: options send during domoticz device type selector switch creation and update
+    #   "fieldtype": string: cf. getFieldType() return value
     #   "fieldsvalues": string: fields values read after "readwhole" operation
     #   "fieldsvaluestimestamp": integer: time when fields values have been updated
     dUnitsByDeviceID = None
@@ -344,12 +346,13 @@ class BasePlugin:
                             iValue, sValue = valueEbusdToDomoticz(dUnit, sFieldValue)
                             oDevice = dUnit["device"]
                             if oDevice is not None:
-                                # Doesn't seem to be a good idea, if a device is not updated on a regular basis, Domoticz show it in red anyway
-                                #if dUnit["forcerefresh"] or oDevice.TimedOut or (oDevice.nValue != iValue) or (oDevice.sValue != sValue):
-                                    #oDevice.Update(nValue=iValue, sValue=sValue, TimedOut=0, Options=dUnit["domoticzoptions"])
-                                    #dUnit["forcerefresh"] = False
-                                oDevice.Update(nValue=iValue, sValue=sValue, TimedOut=0, Options=dUnit["domoticzoptions"])
-                                dUnit["forcerefresh"] = False
+                                if not dUnit["updateregularly"]:
+                                    if dUnit["forcerefresh"] or oDevice.TimedOut or (oDevice.nValue != iValue) or (oDevice.sValue != sValue):
+                                        oDevice.Update(nValue=iValue, sValue=sValue, TimedOut=0, Options=dUnit["domoticzoptions"])
+                                        dUnit["forcerefresh"] = False
+                                else:
+                                    oDevice.Update(nValue=iValue, sValue=sValue, TimedOut=0, Options=dUnit["domoticzoptions"])
+                                        
                             else:
                                 Domoticz.Error("Received unexpected value " + sReadValue + " for device not anymore in dictionnary")
                         else:
@@ -463,6 +466,7 @@ class BasePlugin:
                                     iFieldIndex -= 1
 
                         sTypeName = ""
+                        bUpdateRegularly = False
                         dValues = None
                         dOptions = {}
                         dOptionsMapping = {}
@@ -475,6 +479,7 @@ class BasePlugin:
                         # on/off type
                         if (sFieldType == "switch") and bWritable:
                             sTypeName = "Switch"
+                            bHandleTimeout = True
                         # selector switch type
                         if ("values" in dFieldDefs):
                             if bWritable:
@@ -502,16 +507,20 @@ class BasePlugin:
                         elif (sFieldType == "number") or (sFieldType == "custom"):
                             sTypeName = "Custom"
                             dOptions = { "Custom": "1;" + str(dFieldDefs["unit"])}
+                            bUpdateRegularly = True
                         # setpoint type
                         elif (sFieldType == "temperature") and bWritable:
                             iMainType = 0xF2
                             iSubtype = 0x01
+                            bUpdateRegularly = True
                         # read-only temperature type
                         elif (sFieldType == "temperature"):
                             sTypeName = "Temperature"
+                            bUpdateRegularly = True
                         # pressure type
                         elif (sFieldType == "pressure"):
                             sTypeName = "Pressure"
+                            bUpdateRegularly = True
                         # else text type
                         else:
                             sTypeName = "Text"
@@ -564,7 +573,7 @@ class BasePlugin:
                                 break
                         
                         # incorporate found or created device to local self.dUnits dictionnaries, to keep additionnal parameters used by the plugin
-                        self.dUnitsByDeviceID[sDeviceID] = { "device":Devices[iIndexUnit], "circuit":sCircuit, "register":sMessage, "fieldindex":iFieldIndex, "fieldscount":iFieldsCount, "options":dOptionsMapping, "reverseoptions":dReverseOptionsMapping, "domoticzoptions": dOptions, "forcerefresh": not bFound }
+                        self.dUnitsByDeviceID[sDeviceID] = { "device":Devices[iIndexUnit], "circuit":sCircuit, "register":sMessage, "fieldindex":iFieldIndex, "fieldscount":iFieldsCount, "options":dOptionsMapping, "reverseoptions":dReverseOptionsMapping, "domoticzoptions": dOptions, "fieldtype": sFieldType, "forcerefresh": not bFound, "updateregularly" : bUpdateRegularly }
                         self.dUnitsByUnitNumber[iIndexUnit] = self.dUnitsByDeviceID[sDeviceID]
                         if not sCircuit in self.dUnits3D:
                             self.dUnits3D[sCircuit] = {}
@@ -828,18 +837,18 @@ class BasePlugin:
                         if dUnit:
                             self.read(dUnit)
                 # check for timeouts
-                # Doesn't seem to be a good idea, if a device is not updated on a regular basis, Domoticz show it in red anyway
-                #for iIndexUnit, oDevice in Devices.items():
-                    #bTimedOut = False
-                    #if iIndexUnit in self.dUnitsByUnitNumber:
-                        #dUnit = self.dUnitsByUnitNumber[iIndexUnit]
-                        #if (not ("fieldsvaluestimestamp" in dUnit)) or ((dUnit["fieldsvaluestimestamp"] + (3 * self.iRefreshRate)) < timeNow):
-                            #bTimedOut = True
-                    #else:
-                        #bTimedOut = True
-                    #if bTimedOut:
-                        #Domoticz.Error("Device " + oDevice.Name + " ID " + str(oDevice.ID) + " DeviceID " + oDevice.DeviceID + " timed out")
-                        #oDevice.Update(nValue=oDevice.nValue, sValue=oDevice.sValue, TimedOut=1)
+                for iIndexUnit, oDevice in Devices.items():
+                    if not oDevice.TimedOut:
+                        bTimedOut = False                    
+                        if iIndexUnit in self.dUnitsByUnitNumber:
+                            dUnit = self.dUnitsByUnitNumber[iIndexUnit]
+                            if (not ("fieldsvaluestimestamp" in dUnit)) or ((dUnit["fieldsvaluestimestamp"] + (3 * self.iRefreshRate)) < timeNow):
+                                bTimedOut = True
+                        else:
+                            bTimedOut = True
+                        if bTimedOut:
+                            Domoticz.Error("Device " + oDevice.Name + " ID " + str(oDevice.ID) + " DeviceID " + oDevice.DeviceID + " timed out")
+                            oDevice.Update(nValue=oDevice.nValue, sValue=oDevice.sValue, TimedOut=1)
                 self.iRefreshTime = timeNow
 
 global _plugin
@@ -966,29 +975,34 @@ def valueDomoticzToEbusd(dUnit, sCommand, ifValue, sValue, previousIValue, previ
     dReverseOptionsMapping = dUnit["reverseoptions"]
     if len(dReverseOptionsMapping) > 0:
         if ifValue in dReverseOptionsMapping:
-            sReturnValue = dReverseOptionsMapping[ifValue]
+            return dReverseOptionsMapping[ifValue]
         else:
-            sReturnValue = str(ifValue)
+            return str(ifValue)
     elif sCommand == "on":
-        sReturnValue = "on"
+        return "on"
     elif sCommand == "yes":
-        sReturnValue = "yes"
+        return "yes"
     elif sCommand == "off":
-        sReturnValue = "off"
+        return "off"
     elif sCommand == "no":
-        sReturnValue = "no"
+        return "no"
     elif sCommand == "toggle":
         if previousIValue:
-            sReturnValue = "no"
+            return "no"
         else:
-            sReturnValue = "yes"
+            return "yes"
     else:
-        if sValue:
-            sReturnValue = sValue
+        if dUnit["fieldtype"] == "switch":
+            if nValue == 0:
+                return "off"
+            else:
+                return "on"
+        elif sValue:
+            return sValue
         else:
-            sReturnValue = str(ifValue)
+            return str(ifValue)
             
-    return sReturnValue
+    return ""
 
 # convert ebus sFieldValue (string) to integer, string values for domoticz, for dUnit (dictionnary)
 def valueEbusdToDomoticz(dUnit, sFieldValue):
