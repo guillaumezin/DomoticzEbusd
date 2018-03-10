@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.2.2" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.2.3" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default=""/> -->
@@ -136,7 +136,6 @@ class BasePlugin:
     #   "fieldscount": integer: total number of fields
     #   "options": dictionnary: keyed by ebusd value, contains selector switch level integer value, empty if not selector switch
     #	"forcerefresh": boolean: for Devices dictionnary update
-    #   "updateregularly": boolean: this device must update regularly Domoticz to prevent timeout
     #   "reverseoptions": dictionnary: keyed by selector switch level integer valu, contains selector switch ebusd string value, empty if not selector switch
     #   "domoticzoptions": dictionnary: options send during domoticz device type selector switch creation and update
     #   "fieldtype": string: cf. getFieldType() return value
@@ -346,13 +345,9 @@ class BasePlugin:
                             iValue, sValue = valueEbusdToDomoticz(dUnit, sFieldValue)
                             oDevice = dUnit["device"]
                             if oDevice is not None:
-                                if not dUnit["updateregularly"]:
-                                    if dUnit["forcerefresh"] or oDevice.TimedOut or (oDevice.nValue != iValue) or (oDevice.sValue != sValue):
-                                        oDevice.Update(nValue=iValue, sValue=sValue, TimedOut=0, Options=dUnit["domoticzoptions"])
-                                        dUnit["forcerefresh"] = False
-                                else:
-                                    oDevice.Update(nValue=iValue, sValue=sValue, TimedOut=0, Options=dUnit["domoticzoptions"])
-                                        
+                                if dUnit["forcerefresh"] or oDevice.TimedOut or (oDevice.nValue != iValue) or (oDevice.sValue != sValue):
+                                    oDevice.Update(nValue=iValue, sValue=sValue, TimedOut=0)
+                                    dUnit["forcerefresh"] = False
                             else:
                                 Domoticz.Error("Received unexpected value " + sReadValue + " for device not anymore in dictionnary")
                         else:
@@ -372,6 +367,7 @@ class BasePlugin:
         # register are separated with a space
         lUnits = Parameters["Mode2"].lower().split(" ")
         iKey = 0
+        timeNow = time.time()
         # enumerate with 0 based integer and register name (sDeviceID)
         for sDeviceID in lUnits:
             # continue only if sDeviceID not already in self.dUnitsByDeviceID
@@ -466,7 +462,6 @@ class BasePlugin:
                                     iFieldIndex -= 1
 
                         sTypeName = ""
-                        bUpdateRegularly = False
                         dValues = None
                         dOptions = {}
                         dOptionsMapping = {}
@@ -507,20 +502,16 @@ class BasePlugin:
                         elif (sFieldType == "number") or (sFieldType == "custom"):
                             sTypeName = "Custom"
                             dOptions = { "Custom": "1;" + str(dFieldDefs["unit"])}
-                            bUpdateRegularly = True
                         # setpoint type
                         elif (sFieldType == "temperature") and bWritable:
                             iMainType = 0xF2
                             iSubtype = 0x01
-                            bUpdateRegularly = True
                         # read-only temperature type
                         elif (sFieldType == "temperature"):
                             sTypeName = "Temperature"
-                            bUpdateRegularly = True
                         # pressure type
                         elif (sFieldType == "pressure"):
                             sTypeName = "Pressure"
-                            bUpdateRegularly = True
                         # else text type
                         else:
                             sTypeName = "Text"
@@ -551,7 +542,7 @@ class BasePlugin:
                                 # Create device based on sTypeName or iMainType
                                 if sTypeName != "":
                                     # create device, log dFieldDefs["comment"] giving hints on how to use register
-                                    Domoticz.Device(Name=sCompleteName,  Unit=iIndexUnit, TypeName=sTypeName, Options=dOptions, Used=1, DeviceID=sDeviceIntegerID).Create()
+                                    Domoticz.Device(Name=sCompleteName,  Unit=iIndexUnit, TypeName=sTypeName, Description=dFieldDefs["comment"], Options=dOptions, Used=1, DeviceID=sDeviceIntegerID).Create()
                                     if iIndexUnit in Devices:
                                         Domoticz.Log("Add device " + sDeviceID + " (" + sDeviceIntegerID + ") unit " + str(iIndexUnit) + " as type " + sTypeName + ": " + dFieldDefs["comment"])
                                     else:
@@ -560,7 +551,7 @@ class BasePlugin:
                                         break
                                 else:
                                     # create device, log dFieldDefs["comment"] giving hints on how to use register
-                                    Domoticz.Device(Name=sCompleteName,  Unit=iIndexUnit, Type=iMainType, Subtype=iSubtype, Options=dOptions, Used=1, DeviceID=sDeviceIntegerID).Create()
+                                    Domoticz.Device(Name=sCompleteName,  Unit=iIndexUnit, Type=iMainType, Subtype=iSubtype, Description=dFieldDefs["comment"], Options=dOptions, Used=1, DeviceID=sDeviceIntegerID).Create()
                                     if iIndexUnit in Devices:
                                         Domoticz.Log("Add device " + sDeviceID + " (" + sDeviceIntegerID + ") unit " + str(iIndexUnit) + " as type " + str(iMainType) + " and subtype " + str(iSubtype) + ": " + dFieldDefs["comment"])
                                     else:
@@ -573,7 +564,9 @@ class BasePlugin:
                                 break
                         
                         # incorporate found or created device to local self.dUnits dictionnaries, to keep additionnal parameters used by the plugin
-                        self.dUnitsByDeviceID[sDeviceID] = { "device":Devices[iIndexUnit], "circuit":sCircuit, "register":sMessage, "fieldindex":iFieldIndex, "fieldscount":iFieldsCount, "options":dOptionsMapping, "reverseoptions":dReverseOptionsMapping, "domoticzoptions": dOptions, "fieldtype": sFieldType, "forcerefresh": not bFound, "updateregularly" : bUpdateRegularly }
+                        self.dUnitsByDeviceID[sDeviceID] = { "device":Devices[iIndexUnit], "circuit":sCircuit, "register":sMessage, "fieldindex":iFieldIndex, "fieldscount":iFieldsCount, "options":dOptionsMapping, "reverseoptions":dReverseOptionsMapping, "domoticzoptions": dOptions, "fieldtype": sFieldType, "forcerefresh": not bFound }
+                        # set fieldsvaluestimestamp for read then write timeout
+                        self.dUnitsByDeviceID[sDeviceID]["fieldsvaluestimestamp"] = timeNow - (2 * self.timeoutConstant)
                         self.dUnitsByUnitNumber[iIndexUnit] = self.dUnitsByDeviceID[sDeviceID]
                         if not sCircuit in self.dUnits3D:
                             self.dUnits3D[sCircuit] = {}
@@ -588,9 +581,10 @@ class BasePlugin:
                         self.bStillToLook = True
 
     def onStart(self):
-        Domoticz.Log("onStart called")
+        Domoticz.Debug("onStart called")
         # Ignore username and password, I'm not sure when I should authenticate and it can be handled by ACL file directly by ebusd
         #Domoticz.Log("Username set to " + Parameters["Username"])
+        Domoticz.Log("This plugin is compatible with Domoticz version 3.9014 and upper")
         Domoticz.Log("IP or named address set to " + Parameters["Address"])
         Domoticz.Log("Telnet port set to " + Parameters["Port"])
         Domoticz.Log("JSON  HTTP port set to " + Parameters["Mode1"])
@@ -784,7 +778,7 @@ class BasePlugin:
                         iFieldsCount = dUnit["fieldscount"]
                         # we have more than one field, retrieve all fields value (from last read) if not too old, modify the field and write
                         if iFieldsCount > 1:
-                            if ("fieldsvaluestimestamp" in dUnit) and ((dUnit["fieldsvaluestimestamp"] + self.timeoutConstant) > timeNow):
+                            if ((dUnit["fieldsvaluestimestamp"] + self.timeoutConstant) > timeNow):
                                 # fields in a string are separated by ;
                                 lData = dUnit["fieldsvalues"].split(";")
                                 # sanity check
@@ -842,7 +836,7 @@ class BasePlugin:
                         bTimedOut = False                    
                         if iIndexUnit in self.dUnitsByUnitNumber:
                             dUnit = self.dUnitsByUnitNumber[iIndexUnit]
-                            if (not ("fieldsvaluestimestamp" in dUnit)) or ((dUnit["fieldsvaluestimestamp"] + (3 * self.iRefreshRate)) < timeNow):
+                            if (dUnit["fieldsvaluestimestamp"] + (2 * self.iRefreshRate)) < timeNow:
                                 bTimedOut = True
                         else:
                             bTimedOut = True
