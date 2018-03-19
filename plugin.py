@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.2.3" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.2.4" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default=""/> -->
@@ -159,7 +159,9 @@ class BasePlugin:
     sCurrentCommand = None
     # integer: timeout in s
     timeoutConstant = 10
-
+    # integer: max heartbeat interval in s
+    maxHeartbeatInterval = 30
+    
     def __init__(self):
         self.isStarted = False
         self.telnetConn = None
@@ -604,7 +606,12 @@ class BasePlugin:
             self.iRefreshRate = 600
         # enable debug if required
         if Parameters["Mode6"] == "Debug":
-            Domoticz.Debugging(1)
+            Domoticz.Debugging(1)            
+        # set heartbeat interval	
+        if self.iRefreshRate < self.maxHeartbeatInterval:
+                Domoticz.Heartbeat(self.iRefreshRate)
+        else:
+                Domoticz.Heartbeat(self.maxHeartbeatInterval)
         # now we can enabling the plugin
         self.isStarted = True
         # Ignore username and password, I'm not sure when I should authenticate and it can be handled by ACL file directly by ebusd
@@ -778,7 +785,7 @@ class BasePlugin:
                         iFieldsCount = dUnit["fieldscount"]
                         # we have more than one field, retrieve all fields value (from last read) if not too old, modify the field and write
                         if iFieldsCount > 1:
-                            if ((dUnit["fieldsvaluestimestamp"] + self.timeoutConstant) > timeNow):
+                            if ((dUnit["fieldsvaluestimestamp"] + self.timeoutConstant) >= timeNow):
                                 # fields in a string are separated by ;
                                 lData = dUnit["fieldsvalues"].split(";")
                                 # sanity check
@@ -807,7 +814,7 @@ class BasePlugin:
                 else:
                     Domoticz.Error("Received command for unit in error state: " + dUnit)
         # the plugin seems blocked in connecting or data sending step, restart the plugin
-        elif (len(self.dqFifo) > 0) and (timeNow > (self.iConnectionTimestamp + self.timeoutConstant)) :
+        elif (len(self.dqFifo) > 0) and (timeNow >= (self.iConnectionTimestamp + self.timeoutConstant)) :
             Domoticz.Error("Timeout during handleFifo, restart plugin")
             self.onStop()
             self.onStart()
@@ -819,7 +826,7 @@ class BasePlugin:
         if self.isStarted:
             timeNow = time.time()
             # refresh
-            if (timeNow > (self.iRefreshTime + self.iRefreshRate)) :
+            if (timeNow >= (self.iRefreshTime + self.iRefreshRate)) :
                 # we still not have detected all registers given in configuration, retry JSON search
                 if self.bStillToLook:
                     self.findDevices()
@@ -836,7 +843,7 @@ class BasePlugin:
                         bTimedOut = False                    
                         if iIndexUnit in self.dUnitsByUnitNumber:
                             dUnit = self.dUnitsByUnitNumber[iIndexUnit]
-                            if (dUnit["fieldsvaluestimestamp"] + (2 * self.iRefreshRate)) < timeNow:
+                            if (dUnit["fieldsvaluestimestamp"] + (3 * self.iRefreshRate)) < timeNow:
                                 bTimedOut = True
                         else:
                             bTimedOut = True
