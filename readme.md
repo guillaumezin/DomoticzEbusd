@@ -137,7 +137,7 @@ This is case insensitive (since version 1.1.7). The first part of a register is 
 You can add more than one ebusd-bridge hardware to Domoticz, for instance to get some registers as read-only and others as writable.
 
 ## Particular case of holiday mode
-Holiday mode can be activated only by setting a start and end date. If you set "holiday" to Hc1SFMode or Hc2SFMode, it won't be effective. Domoticz doesn't handle date devices, so f47:Hc1HolidayStartPeriod f47:Hc1HolidayEndPeriod f47:Hc2HolidayStartPeriod f47:Hc2HolidayEndPeriod will appear as read-only text devices. To set holiday mode from Domoticz, you can create a virtual switch and create a Lua or dzVents script, here is an example where "holiday mode" is a virtual switch:
+Holiday mode can be activated only by setting a start and end date. If you set "holiday" to Hc1SFMode or Hc2SFMode, it won't be effective. Domoticz doesn't handle date devices, so f47:Hc1HolidayStartPeriod f47:Hc1HolidayEndPeriod f47:Hc2HolidayStartPeriod f47:Hc2HolidayEndPeriod will appear as read-only text devices. To set holiday mode from Domoticz, you can create a virtual switch and create a Lua or dzVents script, here is an example where "Holiday mode" is a virtual switch:
 ```
 return {
 	on = {
@@ -148,20 +148,20 @@ return {
 	execute = function(domoticz, device)
 		domoticz.log('Device ' .. device.name .. ' was changed', domoticz.LOG_ERROR)
 	        if (device.active) then
-	            domoticz.devices("ebusd bridge - f47:hc1holidaystartperiod - date").update(0,"01.01.2000")
-	            domoticz.devices("ebusd bridge - f47:hc2holidaystartperiod - date").update(0,"01.01.2000")
-	            domoticz.devices("ebusd bridge - f47:hc1holidayendperiod - date").update(0,"01.01.2099")
-	            domoticz.devices("ebusd bridge - f47:hc2holidayendperiod - date").update(0,"01.01.2099")
+	            domoticz.devices("ebusd bridge - f47:hc1holidaystartperiod - date").update(0, "01.01.2000")
+	            domoticz.devices("ebusd bridge - f47:hc2holidaystartperiod - date").update(0, "01.01.2000")
+	            domoticz.devices("ebusd bridge - f47:hc1holidayendperiod - date").update(0, "01.01.2099")
+	            domoticz.devices("ebusd bridge - f47:hc2holidayendperiod - date").update(0, "01.01.2099")
 	        else
-	            domoticz.devices("ebusd bridge - f47:hc1holidaystartperiod - date").update(0,"01.01.2099")
-	            domoticz.devices("ebusd bridge - f47:hc2holidaystartperiod - date").update(0,"01.01.2099")
-	            domoticz.devices("ebusd bridge - f47:hc1holidayendperiod - date").update(0,"01.01.2099")
-	            domoticz.devices("ebusd bridge - f47:hc2holidayendperiod - date").update(0,"01.01.2099")
+	            domoticz.devices("ebusd bridge - f47:hc1holidaystartperiod - date").update(0, "01.01.2099")
+	            domoticz.devices("ebusd bridge - f47:hc2holidaystartperiod - date").update(0, "01.01.2099")
+	            domoticz.devices("ebusd bridge - f47:hc1holidayendperiod - date").update(0, "01.01.2099")
+	            domoticz.devices("ebusd bridge - f47:hc2holidayendperiod - date").update(0, "01.01.2099")
 	       end
 	end
 }
 ```
-Now you can set "On" and "Off", even using Timers, on "Holiday mode" virtual switch, to disable heating circuits. Hot water production will be disabled automatically when all heating circuits are in holiday mode with my calorMATIC VRC470f control.
+Now you can set "On" and "Off", even using Timers, on "Holiday mode" virtual switch, to disable heating circuits. Hot water production will be disabled automatically when all heating circuits are in holiday mode with my calorMATIC VRC470f control. This will work with Domoticz from version 3.9415 onwards, because on earlier version, update() methods from Lua and dsVents event scripts are not passed to python plugins.
 
 ## Authors
 
