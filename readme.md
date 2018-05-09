@@ -161,7 +161,7 @@ return {
 	end
 }
 ```
-Now you can set "On" and "Off", even using Timers, on "Holiday mode" virtual switch, to disable heating circuits. Hot water production will be disabled automatically when all heating circuits are in holiday mode with my calorMATIC VRC470f control. This will work with Domoticz from version 3.9415 onwards, because on earlier version, update() methods from Lua and dsVents event scripts are not passed to python plugins.
+Now you can set "On" and "Off", even using Timers, on "Holiday mode" virtual switch, to disable heating circuits. Hot water production will be disabled automatically when all heating circuits are in holiday mode with my calorMATIC VRC470f control. This will work with Domoticz from version 3.9415 onwards, because on earlier version, update() methods from Lua and dzVents event scripts are not passed to python plugins.
 
 ## Authors
 
