@@ -4,10 +4,10 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.2.5" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.2.6" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
-        <param field="Password" label="Password" width="200px" required="false" default=""/> -->
+        <param field="Password" label="Password" width="200px" required="false" default="" password="true"/> -->
         <param field="Address" label="IP or named address" width="200px" required="true" default="127.0.0.1"/>
         <param field="Port" label="Telnet port" width="75px" required="true" default="8888"/>
         <param field="Mode1" label="JSON HTTP port" width="75px" required="true" default="8889"/>
@@ -586,7 +586,7 @@ class BasePlugin:
         Domoticz.Debug("onStart called")
         # Ignore username and password, I'm not sure when I should authenticate and it can be handled by ACL file directly by ebusd
         #Domoticz.Log("Username set to " + Parameters["Username"])
-        Domoticz.Log("This plugin is compatible with Domoticz version 3.9085 and upper")
+        Domoticz.Log("This plugin is compatible with Domoticz version 3.9085 onwards")
         Domoticz.Log("IP or named address set to " + Parameters["Address"])
         Domoticz.Log("Telnet port set to " + Parameters["Port"])
         Domoticz.Log("JSON  HTTP port set to " + Parameters["Mode1"])
