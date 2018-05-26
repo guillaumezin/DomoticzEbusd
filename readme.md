@@ -163,6 +163,74 @@ return {
 ```
 Now you can set "On" and "Off", even using Timers, on "Holiday mode" virtual switch, to disable heating circuits. Hot water production will be disabled automatically when all heating circuits are in holiday mode with my calorMATIC VRC470f control. This will work with Domoticz from version 3.9415 onwards, because on earlier version, update() methods from Lua and dzVents event scripts are not passed to python plugins.
 
+## Script examples
+
+dsVents script to automatically switch from summer mode to auto mode
+```
+-- temperature to decide summer mode
+highTempLevel = 20
+-- temperature to decide winter mode
+lowTempLevel = highTempLevel - 4
+-- consecutive days to watch
+nDaysToWatch = 3
+-- temperature device
+temperatureDevice = "Température extérieure"
+-- heating device 1
+heating1Device = "Mode chauffage RDC"
+-- heating device 2
+heating2Device = "Mode chauffage étage"
+-- selector switch level for summer mode
+summerModeLevel = 40
+-- selector switch level for winter mode
+winterModeLevel = 10
+
+return {
+	on = {
+		timer = {
+		    "at 20:00"
+		},
+	},
+	data = {
+	    history = { initial = 0 },
+	    mode  = { initial = -1 }
+	},
+	execute = function(domoticz, item)
+    	temperature = domoticz.devices(temperatureDevice).temperature
+    	if (domoticz.data.mode == winterModeLevel) then
+    	    if (temperature >= highTempLevel) then
+    	        if domoticz.data.history < nDaysToWatch then
+    	            domoticz.data.history = domoticz.data.history + 1
+    	            if domoticz.data.history == nDaysToWatch then
+                	    domoticz.log("Switching heating to summer mode")
+                	    domoticz.data.mode = summerModeLevel
+            	        domoticz.data.history = 0
+                		domoticz.devices(heating1Device).switchSelector(domoticz.data.mode)
+                		domoticz.devices(heating2Device).switchSelector(domoticz.data.mode)
+    	            end
+                end
+    	    else
+    	        domoticz.data.history = 0
+            end
+        else
+    	    if (temperature <= lowTempLevel) then
+    	        if domoticz.data.history < nDaysToWatch then
+    	            domoticz.data.history = domoticz.data.history + 1
+    	            if domoticz.data.history == nDaysToWatch then
+                	    domoticz.log("Switching heating to winter mode")
+                	    domoticz.data.mode = winterModeLevel
+            	        domoticz.data.history = 0
+                		domoticz.devices(heating1Device).switchSelector(domoticz.data.mode)
+                		domoticz.devices(heating2Device).switchSelector(domoticz.data.mode)
+    	            end
+                end
+	        else
+   	            domoticz.data.history = 0
+            end
+	    end
+    end
+}
+```
+
 ## Authors
 
 * **Guillaume Zin** - *Initial work* - [DomoticzEbusd](https://github.com/guillaumezin/DomoticzEbusd)
