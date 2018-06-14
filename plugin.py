@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.2.6" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.2.7" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default="" password="true"/> -->
@@ -464,6 +464,7 @@ class BasePlugin:
                                     iFieldIndex -= 1
 
                         sTypeName = ""
+                        iSwitchtype = -1
                         dValues = None
                         dOptions = {}
                         dOptionsMapping = {}
@@ -474,11 +475,17 @@ class BasePlugin:
                         sFieldType = getFieldType(dFieldDefs["unit"], dFieldDefs["name"], dFieldDefs["type"])
                         Domoticz.Debug("Field is type " + sFieldType)
                         # on/off type
-                        if (sFieldType == "switch") and bWritable:
-                            sTypeName = "Switch"
+                        #if (sFieldType == "switch") and bWritable:
+                        if (sFieldType == "switchonoff") or (sFieldType == "switchyesno"):
+                            iMainType = 0xF4
+                            iSubtype = 0x49
+                            if bWritable:
+                                iSwitchtype = 0
+                            else:
+                                iSwitchtype = 2
                             bHandleTimeout = True
                         # selector switch type
-                        if ("values" in dFieldDefs):
+                        elif ("values" in dFieldDefs):
                             if bWritable:
                                 sTypeName = "Selector Switch"
                             else:
@@ -493,10 +500,11 @@ class BasePlugin:
                                 sLevelNames += str(sValue)
                                 iIndexValue += 1
                                 iIndexValue *= 10
-                                if bWritable:
-                                    dOptionsMapping[sValue] = iIndexValue
-                                else:
-                                    dOptionsMapping[sValue] = sValue
+                                #if bWritable:
+                                    #dOptionsMapping[sValue] = iIndexValue
+                                #else:
+                                    #dOptionsMapping[sValue] = sValue
+                                dOptionsMapping[sValue] = iIndexValue
                                 dReverseOptionsMapping[iIndexValue] = sValue
                             Domoticz.Debug("LevelNames for Domoticz are " + sLevelNames)
                             dOptions = {"LevelActions": sLevelActions, "LevelNames": sLevelNames, "LevelOffHidden": "true", "SelectorStyle": "1"}
@@ -553,13 +561,22 @@ class BasePlugin:
                                         break
                                 else:
                                     # create device, log dFieldDefs["comment"] giving hints on how to use register
-                                    Domoticz.Device(Name=sCompleteName,  Unit=iIndexUnit, Type=iMainType, Subtype=iSubtype, Description=dFieldDefs["comment"], Options=dOptions, Used=1, DeviceID=sDeviceIntegerID).Create()
-                                    if iIndexUnit in Devices:
-                                        Domoticz.Log("Add device " + sDeviceID + " (" + sDeviceIntegerID + ") unit " + str(iIndexUnit) + " as type " + str(iMainType) + " and subtype " + str(iSubtype) + ": " + dFieldDefs["comment"])
+                                    if iSwitchtype >= 0:
+                                        Domoticz.Device(Name=sCompleteName,  Unit=iIndexUnit, Type=iMainType, Subtype=iSubtype, Switchtype=iSwitchtype, Description=dFieldDefs["comment"], Options=dOptions, Used=1, DeviceID=sDeviceIntegerID).Create()
+                                        if iIndexUnit in Devices:
+                                            Domoticz.Log("Add device " + sDeviceID + " (" + sDeviceIntegerID + ") unit " + str(iIndexUnit) + " as type " + str(iMainType) + ", subtype " + str(iSubtype) + " and switchtype " + str(iSwitchtype) + ": " + dFieldDefs["comment"])
+                                        else:
+                                            Domoticz.Error("Cannot add device " + sDeviceID + " (" + sDeviceIntegerID + ") unit " + str(iIndexUnit) + ". Check in settings that Domoticz is set up to accept new devices")
+                                            self.bStillToLook = True
+                                            break
                                     else:
-                                        Domoticz.Error("Cannot add device " + sDeviceID + " (" + sDeviceIntegerID + ") unit " + str(iIndexUnit) + ". Check in settings that Domoticz is set up to accept new devices")
-                                        self.bStillToLook = True
-                                        break
+                                        Domoticz.Device(Name=sCompleteName,  Unit=iIndexUnit, Type=iMainType, Subtype=iSubtype, Description=dFieldDefs["comment"], Options=dOptions, Used=1, DeviceID=sDeviceIntegerID).Create()
+                                        if iIndexUnit in Devices:
+                                            Domoticz.Log("Add device " + sDeviceID + " (" + sDeviceIntegerID + ") unit " + str(iIndexUnit) + " as type " + str(iMainType) + " and subtype " + str(iSubtype) + ": " + dFieldDefs["comment"])
+                                        else:
+                                            Domoticz.Error("Cannot add device " + sDeviceID + " (" + sDeviceIntegerID + ") unit " + str(iIndexUnit) + ". Check in settings that Domoticz is set up to accept new devices")
+                                            self.bStillToLook = True
+                                            break
                             else:
                                 Domoticz.Error("Too many devices, " + sDeviceID + " cannot be added")
                                 self.dUnitsByDeviceID[sDeviceID] = "too many devices"
@@ -923,9 +940,9 @@ def getFieldType(sFieldUnit, sFieldName, sFieldType):
     elif sFieldUnit != "":
         return "custom"
     elif sFieldName == "onoff":
-        return "switch"
+        return "switchonoff"
     elif sFieldName == "yesno":
-        return "selectoryesno"
+        return "switchyesno"
     return {
         "UCH": "number",
         "BCD": "number",
@@ -972,32 +989,45 @@ def getFieldType(sFieldUnit, sFieldName, sFieldType):
 
 # convert domoticz sCommand (string) and ifValue (integer of float) or sValue (string) to string value for ebusd, for dUnit (dictionnary)
 def valueDomoticzToEbusd(dUnit, sCommand, ifValue, sValue, previousIValue, previousSValue):
-    sCommand = sCommand.lower()
+    sLowerCommand = sCommand.lower()
     dReverseOptionsMapping = dUnit["reverseoptions"]
     if len(dReverseOptionsMapping) > 0:
         if ifValue in dReverseOptionsMapping:
             return dReverseOptionsMapping[ifValue]
         else:
             return str(ifValue)
-    elif sCommand == "on":
-        return "on"
-    elif sCommand == "yes":
-        return "yes"
-    elif sCommand == "off":
-        return "off"
-    elif sCommand == "no":
-        return "no"
-    elif sCommand == "toggle":
-        if previousIValue:
+    elif (sLowerCommand == "on") or (sLowerCommand == "yes"):
+        if dUnit["fieldtype"] == "switchyesno":
+            return "yes"
+        else:
+            return "on"
+    elif (sLowerCommand == "off") or (sLowerCommand == "no"):
+        if dUnit["fieldtype"] == "switchyesno":
             return "no"
         else:
-            return "yes"
+            return "off"
+    elif sLowerCommand == "toggle":
+        if previousIValue:
+            if dUnit["fieldtype"] == "switchyesno":
+                return "no"
+            else:
+                return "off"
+        else:
+            if dUnit["fieldtype"] == "switchyesno":
+                return "yes"
+            else:
+                return "on"
     else:
-        if dUnit["fieldtype"] == "switch":
+        if dUnit["fieldtype"] == "switchonoff":
             if nValue == 0:
                 return "off"
             else:
                 return "on"
+        elif dUnit["fieldtype"] == "switchyesno":
+            if nValue == 0:
+                return "no"
+            else:
+                return "yes"
         elif sValue:
             return sValue
         else:
