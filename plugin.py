@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.2.8" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.2.9" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default="" password="true"/> -->
@@ -1018,12 +1018,12 @@ def valueDomoticzToEbusd(dUnit, sCommand, ifValue, sValue, previousIValue, previ
                 return "on"
     else:
         if dUnit["fieldtype"] == "switchonoff":
-            if nValue == 0:
+            if ifValue == 0:
                 return "off"
             else:
                 return "on"
         elif dUnit["fieldtype"] == "switchyesno":
-            if nValue == 0:
+            if ifValue == 0:
                 return "no"
             else:
                 return "yes"
