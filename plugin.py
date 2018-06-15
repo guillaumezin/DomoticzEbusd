@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.2.7" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.2.8" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default="" password="true"/> -->
@@ -500,11 +500,10 @@ class BasePlugin:
                                 sLevelNames += str(sValue)
                                 iIndexValue += 1
                                 iIndexValue *= 10
-                                #if bWritable:
-                                    #dOptionsMapping[sValue] = iIndexValue
-                                #else:
-                                    #dOptionsMapping[sValue] = sValue
-                                dOptionsMapping[sValue] = iIndexValue
+                                if bWritable:
+                                    dOptionsMapping[sValue] = iIndexValue
+                                else:
+                                    dOptionsMapping[sValue] = sValue
                                 dReverseOptionsMapping[iIndexValue] = sValue
                             Domoticz.Debug("LevelNames for Domoticz are " + sLevelNames)
                             dOptions = {"LevelActions": sLevelActions, "LevelNames": sLevelNames, "LevelOffHidden": "true", "SelectorStyle": "1"}
