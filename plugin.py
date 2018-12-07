@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.3.0" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.3.1" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default="" password="true"/> -->
@@ -368,7 +368,12 @@ class BasePlugin:
     # parse JSON data received from ebusd
     #   sData: string: data received
     def parseJson(self, sData):
-        dJson = json.loads(sData, object_pairs_hook= lambda dict: CaseInsensitiveDict(dict))
+        try:
+            dJson = json.loads(sData, object_pairs_hook= lambda dict: CaseInsensitiveDict(dict))
+            # dJson = json.loads(sData)
+        except Exception as e:
+            Domoticz.Error("Impossible to parse JSON, got exception " + str(e))
+            return
         # register are separated with a space
         lUnits = Parameters["Mode2"].lower().split(" ")
         iKey = 0
