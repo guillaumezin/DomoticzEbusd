@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.3.2" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.3.3" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default="" password="true"/> -->
@@ -522,7 +522,7 @@ class BasePlugin:
                         # number type, probably to improve
                         elif (sFieldType == "number") or (sFieldType == "custom"):
                             #sTypeName = "Custom"
-                            iMainType = 0xF2
+                            iMainType = 0xF3
                             iSubtype = 0x1F
                             dOptions = { "Custom": "1;" + str(dFieldDefs["unit"])}
                         # setpoint type
