@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.3.1" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.3.2" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default="" password="true"/> -->
@@ -471,7 +471,7 @@ class BasePlugin:
                                 if iAllFieldsIndex < iFieldIndex:
                                     iFieldIndex -= 1
 
-                        sTypeName = ""
+                        #sTypeName = ""
                         iSwitchtype = -1
                         dValues = None
                         dOptions = {}
@@ -495,9 +495,13 @@ class BasePlugin:
                         # selector switch type
                         elif ("values" in dFieldDefs):
                             if bWritable:
-                                sTypeName = "Selector Switch"
+                                #sTypeName = "Selector Switch"
+                                iMainType = 0xF4
+                                iSubtype = 0x3E
                             else:
-                                sTypeName = "Text"
+                                #sTypeName = "Text"
+                                iMainType = 0xF3
+                                iSubtype = 0x13
                             dValues = dFieldDefs["values"]
                             sLevelActions = "|"
                             sLevelNames = "|"
@@ -517,7 +521,9 @@ class BasePlugin:
                             dOptions = {"LevelActions": sLevelActions, "LevelNames": sLevelNames, "LevelOffHidden": "true", "SelectorStyle": "1"}
                         # number type, probably to improve
                         elif (sFieldType == "number") or (sFieldType == "custom"):
-                            sTypeName = "Custom"
+                            #sTypeName = "Custom"
+                            iMainType = 0xF2
+                            iSubtype = 0x1F
                             dOptions = { "Custom": "1;" + str(dFieldDefs["unit"])}
                         # setpoint type
                         elif (sFieldType == "temperature") and bWritable:
@@ -525,23 +531,27 @@ class BasePlugin:
                             iSubtype = 0x01
                         # read-only temperature type
                         elif (sFieldType == "temperature"):
-                            sTypeName = "Temperature"
+                            #sTypeName = "Temperature"
+                            iMainType = 0x50
+                            iSubtype = 0x05
                         # pressure type
                         elif (sFieldType == "pressure"):
-                            sTypeName = "Pressure"
+                            #sTypeName = "Pressure"
+                            iMainType = 0xF3
+                            iSubtype = 0x09
                         # else text type
                         else:
-                            sTypeName = "Text"
+                            #sTypeName = "Text"
+                            iMainType = 0xF3
+                            iSubtype = 0x13
                             
                         # check if device is already in domoticz database, based on deviceid
                         bFound = False
                         for iIndexUnit, oDevice in Devices.items():
                             # .lower() for backward compatibility
                             if oDevice.DeviceID.lower() == sDeviceIntegerID:
-                                if sTypeName != "":
-                                    oDevice.Update(nValue=oDevice.nValue, sValue=oDevice.sValue, TimedOut=0, TypeName=sTypeName, Options=dOptions, Used=1)
-                                else:
-                                    # create device, log dFieldDefs["comment"] giving hints on how to use register
+                                if (oDevice.Type != iMainType) or (oDevice.SubType != iSubtype):
+                                    Domoticz.Log("Device " + oDevice.Name + " type changed, updating Domoticz database")
                                     if iSwitchtype >= 0:
                                         oDevice.Update(nValue=oDevice.nValue, sValue=oDevice.sValue, TimedOut=0, Type=iMainType, Subtype=iSubtype, Switchtype=iSwitchtype, Options=dOptions, Used=1)
                                     else:
@@ -564,34 +574,23 @@ class BasePlugin:
                                 sCompleteName = sDeviceID
                                 if dFieldDefs["name"] != "":
                                     sCompleteName += " - " + dFieldDefs["name"]
-                                # Create device based on sTypeName or iMainType
-                                if sTypeName != "":
-                                    # create device, log dFieldDefs["comment"] giving hints on how to use register
-                                    Domoticz.Device(Name=sCompleteName, Unit=iIndexUnit, TypeName=sTypeName, Description=dFieldDefs["comment"], Options=dOptions, Used=1, DeviceID=sDeviceIntegerID).Create()
+                                # create device, log dFieldDefs["comment"] giving hints on how to use register
+                                if iSwitchtype >= 0:
+                                    Domoticz.Device(Name=sCompleteName, Unit=iIndexUnit, Type=iMainType, Subtype=iSubtype, Switchtype=iSwitchtype, Description=dFieldDefs["comment"], Options=dOptions, Used=1, DeviceID=sDeviceIntegerID).Create()
                                     if iIndexUnit in Devices:
-                                        Domoticz.Log("Add device " + sDeviceID + " (" + sDeviceIntegerID + ") unit " + str(iIndexUnit) + " as type " + sTypeName + ": " + dFieldDefs["comment"])
+                                        Domoticz.Log("Add device " + sDeviceID + " (" + sDeviceIntegerID + ") unit " + str(iIndexUnit) + " as type " + str(iMainType) + ", subtype " + str(iSubtype) + " and switchtype " + str(iSwitchtype) + ": " + dFieldDefs["comment"])
                                     else:
                                         Domoticz.Error("Cannot add device " + sDeviceID + " (" + sDeviceIntegerID + ") unit " + str(iIndexUnit) + ". Check in settings that Domoticz is set up to accept new devices")
                                         self.bStillToLook = True
                                         break
                                 else:
-                                    # create device, log dFieldDefs["comment"] giving hints on how to use register
-                                    if iSwitchtype >= 0:
-                                        Domoticz.Device(Name=sCompleteName, Unit=iIndexUnit, Type=iMainType, Subtype=iSubtype, Switchtype=iSwitchtype, Description=dFieldDefs["comment"], Options=dOptions, Used=1, DeviceID=sDeviceIntegerID).Create()
-                                        if iIndexUnit in Devices:
-                                            Domoticz.Log("Add device " + sDeviceID + " (" + sDeviceIntegerID + ") unit " + str(iIndexUnit) + " as type " + str(iMainType) + ", subtype " + str(iSubtype) + " and switchtype " + str(iSwitchtype) + ": " + dFieldDefs["comment"])
-                                        else:
-                                            Domoticz.Error("Cannot add device " + sDeviceID + " (" + sDeviceIntegerID + ") unit " + str(iIndexUnit) + ". Check in settings that Domoticz is set up to accept new devices")
-                                            self.bStillToLook = True
-                                            break
+                                    Domoticz.Device(Name=sCompleteName, Unit=iIndexUnit, Type=iMainType, Subtype=iSubtype, Description=dFieldDefs["comment"], Options=dOptions, Used=1, DeviceID=sDeviceIntegerID).Create()
+                                    if iIndexUnit in Devices:
+                                        Domoticz.Log("Add device " + sDeviceID + " (" + sDeviceIntegerID + ") unit " + str(iIndexUnit) + " as type " + str(iMainType) + " and subtype " + str(iSubtype) + ": " + dFieldDefs["comment"])
                                     else:
-                                        Domoticz.Device(Name=sCompleteName, Unit=iIndexUnit, Type=iMainType, Subtype=iSubtype, Description=dFieldDefs["comment"], Options=dOptions, Used=1, DeviceID=sDeviceIntegerID).Create()
-                                        if iIndexUnit in Devices:
-                                            Domoticz.Log("Add device " + sDeviceID + " (" + sDeviceIntegerID + ") unit " + str(iIndexUnit) + " as type " + str(iMainType) + " and subtype " + str(iSubtype) + ": " + dFieldDefs["comment"])
-                                        else:
-                                            Domoticz.Error("Cannot add device " + sDeviceID + " (" + sDeviceIntegerID + ") unit " + str(iIndexUnit) + ". Check in settings that Domoticz is set up to accept new devices")
-                                            self.bStillToLook = True
-                                            break
+                                        Domoticz.Error("Cannot add device " + sDeviceID + " (" + sDeviceIntegerID + ") unit " + str(iIndexUnit) + ". Check in settings that Domoticz is set up to accept new devices")
+                                        self.bStillToLook = True
+                                        break
                             else:
                                 Domoticz.Error("Too many devices, " + sDeviceID + " cannot be added")
                                 self.dUnitsByDeviceID[sDeviceID] = "too many devices"
