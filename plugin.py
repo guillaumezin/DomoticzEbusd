@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.3.3" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.3.4" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default="" password="true"/> -->
@@ -137,7 +137,7 @@ class BasePlugin:
     #   "fieldindex": integer: field index (0 based)
     #   "fieldscount": integer: total number of fields
     #   "options": dictionnary: keyed by ebusd value, contains selector switch level integer value, empty if not selector switch
-    #	"forcerefresh": boolean: for Devices dictionnary update
+    #	"alwaysrefresh": boolean: to refresh at a regular basis
     #   "reverseoptions": dictionnary: keyed by selector switch level integer valu, contains selector switch ebusd string value, empty if not selector switch
     #   "domoticzoptions": dictionnary: options send during domoticz device type selector switch creation and update
     #   "fieldtype": string: cf. getFieldType() return value
@@ -350,9 +350,8 @@ class BasePlugin:
                             iValue, sValue = valueEbusdToDomoticz(dUnit, sFieldValue)
                             oDevice = dUnit["device"]
                             if oDevice is not None:
-                                if dUnit["forcerefresh"] or oDevice.TimedOut or (oDevice.nValue != iValue) or (oDevice.sValue != sValue):
+                                if dUnit["alwaysrefresh"] or oDevice.TimedOut or (oDevice.nValue != iValue) or (oDevice.sValue != sValue):
                                     oDevice.Update(nValue=iValue, sValue=sValue, TimedOut=0)
-                                    dUnit["forcerefresh"] = False
                             else:
                                 Domoticz.Error("Received unexpected value " + sReadValue + " for device not anymore in dictionnary")
                         else:
@@ -477,6 +476,7 @@ class BasePlugin:
                         dOptions = {}
                         dOptionsMapping = {}
                         dReverseOptionsMapping = {}
+                        bAlwaysRefresh = False
                         # now we try to get the best match between domoticz sensor and ebusd field type
                         # https://github.com/domoticz/domoticz/blob/master/hardware/hardwaretypes.h ligne 42
                         # https://github.com/domoticz/domoticz/blob/master/hardware/plugins/PythonObjects.cpp ligne 410
@@ -534,11 +534,13 @@ class BasePlugin:
                             #sTypeName = "Temperature"
                             iMainType = 0x50
                             iSubtype = 0x05
+                            bAlwaysRefresh = True
                         # pressure type
                         elif (sFieldType == "pressure"):
                             #sTypeName = "Pressure"
                             iMainType = 0xF3
                             iSubtype = 0x09
+                            bAlwaysRefresh = True
                         # else text type
                         else:
                             #sTypeName = "Text"
@@ -597,7 +599,7 @@ class BasePlugin:
                                 break
                         
                         # incorporate found or created device to local self.dUnits dictionnaries, to keep additionnal parameters used by the plugin
-                        self.dUnitsByDeviceID[sDeviceID] = { "device":Devices[iIndexUnit], "circuit":sCircuit, "register":sMessage, "fieldindex":iFieldIndex, "fieldscount":iFieldsCount, "options":dOptionsMapping, "reverseoptions":dReverseOptionsMapping, "domoticzoptions": dOptions, "fieldtype": sFieldType, "forcerefresh": not bFound }
+                        self.dUnitsByDeviceID[sDeviceID] = { "device":Devices[iIndexUnit], "circuit":sCircuit, "register":sMessage, "fieldindex":iFieldIndex, "fieldscount":iFieldsCount, "options":dOptionsMapping, "reverseoptions":dReverseOptionsMapping, "domoticzoptions": dOptions, "fieldtype": sFieldType, "alwaysrefresh": bAlwaysRefresh }
                         # set fieldsvaluestimestamp for read then write timeout
                         self.dUnitsByDeviceID[sDeviceID]["fieldsvaluestimestamp"] = timeNow - (2 * self.timeoutConstant)
                         self.dUnitsByUnitNumber[iIndexUnit] = self.dUnitsByDeviceID[sDeviceID]
