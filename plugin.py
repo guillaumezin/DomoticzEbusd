@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.3.5" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.3.6" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default="" password="true"/> -->
@@ -379,6 +379,8 @@ class BasePlugin:
         lUnits = Parameters["Mode2"].lower().split(" ")
         iKey = 0
         timeNow = time.time()
+        # if device not found, we will rescan later in case register not yet available on ebus messaging system
+        self.bStillToLook = False
         # enumerate with 0 based integer and register name (sDeviceID)
         for sDeviceID in lUnits:
             # continue only if sDeviceID not already in self.dUnitsByDeviceID
@@ -399,8 +401,7 @@ class BasePlugin:
                         if ("messages" in dJson[sCircuit]) and (sMessage in dJson[sCircuit]["messages"]) :
                             Domoticz.Debug("Register " + sMessage + " found")
                         
-                    # look for circuit/message in JSON, if not found, we will rescan later in case register not yet available on ebus messaging system
-                    self.bStillToLook = False
+                    # look for circuit/message in JSON
                     if (sCircuit in dJson) and ("messages" in dJson[sCircuit]) and (sMessage in dJson[sCircuit]["messages"]):
                         Domoticz.Debug("Found")
                         # check if writable
