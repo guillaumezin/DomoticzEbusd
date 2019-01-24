@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.3.6" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.3.7" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default="" password="true"/> -->
@@ -501,6 +501,7 @@ class BasePlugin:
                                 #sTypeName = "Selector Switch"
                                 iMainType = 0xF4
                                 iSubtype = 0x3E
+                                iSwitchtype = 18
                             else:
                                 #sTypeName = "Text"
                                 iMainType = 0xF3
