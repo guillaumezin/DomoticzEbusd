@@ -104,6 +104,20 @@ Then you can open and see available registers from your favorite internet browse
      "releaseBackup": {"value": 0},
      "releaseCooling": {"value": 0}
     },
+    "fielddefs": [
+     { "name": "hcmode", "slave": false, "type": "UCH", "isbits": false, "length": 1, "values": { "0": "auto", "1": "off", "2": "water" }, "unit": "", "comment": "Boiler Modus"},
+     { "name": "flowtempdesired", "slave": false, "type": "D1C", "isbits": false, "length": 1, "unit": "°C", "comment": "Temperatur"},
+     { "name": "hwctempdesired", "slave": false, "type": "D1C", "isbits": false, "length": 1, "unit": "°C", "comment": "Temperatur"},
+     { "name": "hwcflowtempdesired", "slave": false, "type": "UCH", "isbits": false, "length": 1, "unit": "°C", "comment": "Temperatur"},
+     { "name": "", "slave": false, "type": "IGN", "isbits": false, "length": 1, "unit": "", "comment": ""},
+     { "name": "disablehc", "slave": false, "type": "BI0", "isbits": true, "length": 1, "unit": "", "comment": ""},
+     { "name": "disablehwctapping", "slave": false, "type": "BI1", "isbits": true, "length": 1, "unit": "", "comment": ""},
+     { "name": "disablehwcload", "slave": false, "type": "BI2", "isbits": true, "length": 1, "unit": "", "comment": ""},
+     { "name": "", "slave": false, "type": "IGN", "isbits": false, "length": 1, "unit": "", "comment": ""},
+     { "name": "remoteControlHcPump", "slave": false, "type": "BI0", "isbits": true, "length": 1, "unit": "", "comment": ""},
+     { "name": "releaseBackup", "slave": false, "type": "BI1", "isbits": true, "length": 1, "unit": "", "comment": ""},
+     { "name": "releaseCooling", "slave": false, "type": "BI2", "isbits": true, "length": 1, "unit": "", "comment": ""}
+    ]
 ...
 ```
 
@@ -132,7 +146,7 @@ Add the ebusd-bridge hardware in Domoticz hardware configuration tab, giving the
 ```
 broadcast:outsidetemp bai:SetMode:hcmode bai:SetMode:2 bai:SetMode:hwcflowtempdesired f47:RoomTemp:0 f47:Hc1OPMode mc:InternalOperatingMode470 mc:Flow1Sensor mc:FlowTempDesired bai:FlowTemp bai:ReturnTemp bai:FlowTempDesired bai:StorageTemp f47:Hc1SFMode f47:Hc2SFMode bai:WaterPressure f47:Hc1HolidayStartPeriod f47:Hc1HolidayEndPeriod f47:Hc2HolidayStartPeriod f47:Hc2HolidayEndPeriod
 ```
-This is case insensitive (since version 1.1.7). The first part of a register is the circuit name, the second part must be a message name (third level of JSON data), and the third part is the index, or the name (possible only if different than "") of field in fielddefs of a message in JSON data, and is optional (field index 0 by default). For instance "bai:SetMode:2" in my case gives "hwctempdesired" fielddefs value, i.e. the desired hot water  temperature, because it is the second field of bai->messages->SetMode register. It could have been configured with "bai:SetMode:hwctempdesired" directly. Starting version 1.3.8, fielddefs type "IGN" are ignored for index counting and name searching. For instance, if To see available registers, open your favorite internet browser, for instance at this address: [http://192.168.0.10:8889/data?def](http://192.168.0.10:8889/data?def) (change IP address to ebusd hosting device IP address or name, change 8889 port to whatever port you configured for HTTP JSON):
+This is case insensitive (since version 1.1.7). The first part of a register is the circuit name, the second part must be a message name (third level of JSON data), and the third part is the index, or the name (possible only if different than "") of field in fielddefs of a message in JSON data, and is optional (field index 0 by default). For instance "bai:SetMode:2" in my case gives "hwctempdesired" fielddefs value, i.e. the desired hot water  temperature, because it is the second field of bai->messages->SetMode register. It could have been configured with "bai:SetMode:hwctempdesired" directly. Starting version 1.3.8, fielddefs type "IGN" are ignored for index counting and name searching. For instance "bai:SetMode:4" give the same result as "bai:SetMode:disablehc". To see available registers, open your favorite internet browser, for instance at this address: [http://192.168.0.10:8889/data?def](http://192.168.0.10:8889/data?def) (change IP address to ebusd hosting device IP address or name, change 8889 port to whatever port you configured for HTTP JSON):
 
 You can add more than one ebusd-bridge hardware to Domoticz, for instance to get some registers as read-only and others as writable.
 
