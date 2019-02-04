@@ -4,7 +4,7 @@ This is a plugin for [Domoticz](https://domoticz.com), for Domoticz to communica
 
 ## Warning
 
-This is a hobby project, use it if you know what you are doing and at your own risks, I cannot be held responsible for toying and erasing your boiler configuration or breaking your underfloor heating system. I strongly advise to an hardware protection device for your underfloor heating system, for instance an aquastat on the "burner off" input, that opens at 50°C (protection in case of programming error, or piracy...).
+This is a hobby project, use it if you know what you are doing and at your own risks, I cannot be held responsible for toying and erasing your boiler configuration or breaking your underfloor heating system. I strongly advise to install an hardware protection device for your underfloor heating system, for instance an aquastat on the "burner off" input, that opens at 50°C (protection in case of programming error, or piracy...).
 
 ## Prerequisites
 
@@ -132,7 +132,7 @@ Add the ebusd-bridge hardware in Domoticz hardware configuration tab, giving the
 ```
 broadcast:outsidetemp bai:SetMode:hcmode bai:SetMode:2 bai:SetMode:hwcflowtempdesired f47:RoomTemp:0 f47:Hc1OPMode mc:InternalOperatingMode470 mc:Flow1Sensor mc:FlowTempDesired bai:FlowTemp bai:ReturnTemp bai:FlowTempDesired bai:StorageTemp f47:Hc1SFMode f47:Hc2SFMode bai:WaterPressure f47:Hc1HolidayStartPeriod f47:Hc1HolidayEndPeriod f47:Hc2HolidayStartPeriod f47:Hc2HolidayEndPeriod
 ```
-This is case insensitive (since version 1.1.7). The first part of a register is the circuit name, the second part must be a message name (third level of JSON data), and the third part is the index, or the name (possible only if different than "") of field in fielddefs of a message in JSON data, and is optional (field index 0 by default). For instance "bai:SetMode:2" in my case gives "hwctempdesired" field value, i.e. the desired hot water  temperature, because it is the second field of bai->messages->SetMode register. To see available registers, open your favorite internet browser, for instance at this address: [http://192.168.0.10:8889/data?def](http://192.168.0.10:8889/data?def) (change IP address to ebusd hosting device IP address or name, change 8889 port to whatever port you configured for HTTP JSON):
+This is case insensitive (since version 1.1.7). The first part of a register is the circuit name, the second part must be a message name (third level of JSON data), and the third part is the index, or the name (possible only if different than "") of field in fielddefs of a message in JSON data, and is optional (field index 0 by default). For instance "bai:SetMode:2" in my case gives "hwctempdesired" fielddefs value, i.e. the desired hot water  temperature, because it is the second field of bai->messages->SetMode register. It could have been configured with "bai:SetMode:hwctempdesired" directly. Starting version 1.3.8, fielddefs type "IGN" are ignored for index counting and name searching. For instance, if To see available registers, open your favorite internet browser, for instance at this address: [http://192.168.0.10:8889/data?def](http://192.168.0.10:8889/data?def) (change IP address to ebusd hosting device IP address or name, change 8889 port to whatever port you configured for HTTP JSON):
 
 You can add more than one ebusd-bridge hardware to Domoticz, for instance to get some registers as read-only and others as writable.
 
