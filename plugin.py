@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.3.8" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.3.9" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default="" password="true"/> -->
@@ -1091,5 +1091,10 @@ def valueEbusdToDomoticz(dUnit, sFieldValue):
             except ValueError:
                 iValue = 0
             sValue = sFieldValue
+
+    # prevent overflow when translating to C language
+    if iValue >= 2147483647:
+        Domoticz.Debug("Integer value too big, converted to 0, for circuit " + dUnit["circuit"] + " register " + dUnit["register"] + " field " + str(dUnit["fieldindex"]))
+        iValue = 0
    
     return iValue, sValue
