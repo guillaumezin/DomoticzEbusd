@@ -4,31 +4,32 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.3.9" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.4.0" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default="" password="true"/> -->
         <param field="Address" label="IP or named address" width="200px" required="true" default="127.0.0.1"/>
-        <param field="Port" label="Telnet port" width="75px" required="true" default="8888"/>
-        <param field="Mode1" label="JSON HTTP port" width="75px" required="true" default="8889"/>
+        <param field="Port" label="Telnet port" width="100px" required="true" default="8888"/>
+        <param field="Mode1" label="JSON HTTP port" width="100px" required="true" default="8889"/>
         <param field="Mode2" label="Registers" width="1000px" required="true" default=""/>
-        <param field="Mode3" label="Refresh rate (seconds)" width="75px" required="false" default="600"/>
-        <param field="Mode4" label="Disable cache" width="75px">
+        <param field="Mode3" label="Refresh rate (seconds)" width="100px" required="false" default="600"/>
+        <param field="Mode4" label="Disable cache" width="100px">
             <options>
                 <option label="True" value="True"/>
                 <option label="False" value="False"  default="true" />
             </options>
         </param>
-        <param field="Mode5" label="Read-only" width="75px">
+        <param field="Mode5" label="Read-only" width="100px">
             <options>
                 <option label="True" value="True"/>
                 <option label="False" value="False"  default="true" />
             </options>
         </param>
-        <param field="Mode6" label="Debug" width="75px">
+        <param field="Mode6" label="Debug" width="100px">
             <options>
-                <option label="True" value="Debug"/>
-                <option label="False" value="Normal"  default="true" />
+                <option label="Advanced" value="2"/>
+                <option label="Enabled" value="1"/>
+                <option label="None" value="0"  default="true" />
             </options>
         </param>
     </params>
@@ -164,6 +165,8 @@ class BasePlugin:
     timeoutConstant = 10
     # integer: max heartbeat interval in s
     maxHeartbeatInterval = 30
+    # integer: debug level
+    iDebugLevel = 0
     
     def __init__(self):
         self.bIsStarted = False
@@ -181,19 +184,22 @@ class BasePlugin:
         self.sConnectionStep = "idle"
         self.iConnectionTimestamp = 0
         self.sCurrentCommand = ""
-        return
-    
+
+    def myDebug(self, message):
+        if self.iDebugLevel:
+            Domoticz.Log(message)
+
     # Connect to JSON HTTP port to get list of ebusd devices
     def findDevices(self):
         if self.jsonConn == None:
-            Domoticz.Debug("findDevices() create connection to " + Parameters["Address"] + ":" + Parameters["Mode1"])
+            self.myDebug("findDevices() create connection to " + Parameters["Address"] + ":" + Parameters["Mode1"])
             self.jsonConn = Domoticz.Connection(Name="JSON HTTP", Transport="TCP/IP", Protocol="HTTP", Address=Parameters["Address"], Port=Parameters["Mode1"])
-            
+
         if not self.jsonConn.Connected():
-            Domoticz.Debug("Connect")
+            self.myDebug("Connect")
             self.jsonConn.Connect()
         else:
-            Domoticz.Debug("Find")
+            self.myDebug("Find")
             # we connect with def and write to get complete list of fields and writable registers
             sendData = { "Verb" : "GET",
                         "URL"  : "/data?def&write",
@@ -307,7 +313,7 @@ class BasePlugin:
 
     # Parse received data from telnet connection in localStrBuffer
     def parseTelnet(self, localStrBuffer):
-        Domoticz.Debug("Parse telnet buffer size " + str(len(localStrBuffer)))
+        self.myDebug("Parse telnet buffer size " + str(len(localStrBuffer)))
         # We are interested only in first line
         lLines = localStrBuffer.splitlines()
         sReadValue = lLines[0]
@@ -315,7 +321,7 @@ class BasePlugin:
         if sReadValue[:5] == "ERR: ":
             Domoticz.Error("Error from telnet client: " + sReadValue[5:])
         else:
-            Domoticz.Debug("Reveived value: " + repr(sReadValue))
+            self.myDebug("Reveived value: " + repr(sReadValue))
             # We sould receive something like "f47 OutsideTemp temp=9.56;sensor=ok"
             # Split by space
             lParams = sReadValue.split(" ", 2)
@@ -344,7 +350,7 @@ class BasePlugin:
                     for dUnit in self.dUnits3D[sCircuit][sRegister].values():
                         dUnit["fieldsvalues"] = sFieldsValues
                         dUnit["fieldsvaluestimestamp"] = iFieldsValuesTimestamp
-                        Domoticz.Debug("Save whole fields values " + dUnit["fieldsvalues"])						
+                        self.myDebug("Save whole fields values " + dUnit["fieldsvalues"])						
                         # Distribute read values for each field we are interested into
                         if dUnit["fieldindex"] < len(lFieldsValues):
                             sFieldValue = lFieldsValues[dUnit["fieldindex"]]
@@ -395,19 +401,19 @@ class BasePlugin:
                 else:
                     sCircuit = lPath[0]
                     sMessage = lPath[1]
-                    Domoticz.Debug("Look for circuit " + sCircuit + " register " + sMessage + " in JSON data")
+                    self.myDebug("Look for circuit " + sCircuit + " register " + sMessage + " in JSON data")
                     if (sCircuit in dJson) :
-                        Domoticz.Debug("Circuit " + sCircuit + " found")
+                        self.myDebug("Circuit " + sCircuit + " found")
                         if ("messages" in dJson[sCircuit]) and (sMessage in dJson[sCircuit]["messages"]) :
-                            Domoticz.Debug("Register " + sMessage + " found")
+                            self.myDebug("Register " + sMessage + " found")
                         
                     # look for circuit/message in JSON
                     if (sCircuit in dJson) and ("messages" in dJson[sCircuit]) and (sMessage in dJson[sCircuit]["messages"]):
-                        Domoticz.Debug("Found")
+                        self.myDebug("Found")
                         # check if writable
                         sWKey = sMessage + "-w"
                         if (not (Parameters["Mode5"] == "True")) and (sWKey in dJson[sCircuit]["messages"]) and ("write" in dJson[sCircuit]["messages"][sWKey]) and dJson[sCircuit]["messages"][sWKey]["write"] :
-                            Domoticz.Debug("Writable")
+                            self.myDebug("Writable")
                             dMessage = dJson[sCircuit]["messages"][sWKey]
                             bWritable = True
                         else:
@@ -417,7 +423,7 @@ class BasePlugin:
                         # if no fielnumber, default to 0
                         if len(lPath) == 2:
                             sFieldIndex = "0"
-                            Domoticz.Debug("Field set to 0 by default")
+                            self.myDebug("Field set to 0 by default")
                         else:
                             sFieldIndex = lPath[2]
 
@@ -427,7 +433,7 @@ class BasePlugin:
                             continue
                             
                         # try to get fieldnumber, if not an integer, try by name
-                        Domoticz.Debug("Look for field " + sFieldIndex + " in JSON data")
+                        self.myDebug("Look for field " + sFieldIndex + " in JSON data")
                         iFieldsCount = 0
                         iFieldAbsoluteIndex = -1
                         if sFieldIndex.isdigit():
@@ -445,7 +451,7 @@ class BasePlugin:
                                     if dAllFieldDefs["name"].lower() == sFieldIndex:
                                         iFieldIndex = iFieldsCount
                                         iFieldAbsoluteIndex = iAllFieldsIndex                                    
-                                        Domoticz.Debug("Field number of device " + sDeviceID + " is " + str(iFieldIndex))
+                                        self.myDebug("Field number of device " + sDeviceID + " is " + str(iFieldIndex))
                                     iFieldsCount += 1
                         if iFieldAbsoluteIndex < 0:
                                 Domoticz.Error("Cannot find usable field for device " + sDeviceID)
@@ -477,7 +483,7 @@ class BasePlugin:
                         # https://github.com/domoticz/domoticz/blob/master/hardware/hardwaretypes.h ligne 42
                         # https://github.com/domoticz/domoticz/blob/master/hardware/plugins/PythonObjects.cpp ligne 410
                         sFieldType = getFieldType(dFieldDefs["unit"], dFieldDefs["name"], dFieldDefs["type"])
-                        Domoticz.Debug("Field is type " + sFieldType)
+                        self.myDebug("Field is type " + sFieldType)
                         # on/off type
                         #if (sFieldType == "switch") and bWritable:
                         if (sFieldType == "switchonoff") or (sFieldType == "switchyesno"):
@@ -514,7 +520,7 @@ class BasePlugin:
                                 else:
                                     dOptionsMapping[sValue] = sValue
                                 dReverseOptionsMapping[iIndexValue] = sValue
-                            Domoticz.Debug("LevelNames for Domoticz are " + sLevelNames)
+                            self.myDebug("LevelNames for Domoticz are " + sLevelNames)
                             dOptions = {"LevelActions": sLevelActions, "LevelNames": sLevelNames, "LevelOffHidden": "true", "SelectorStyle": "1"}
                         # number type, probably to improve
                         elif (sFieldType == "number") or (sFieldType == "custom"):
@@ -630,6 +636,11 @@ class BasePlugin:
         Domoticz.Log("Disable cache set to " + Parameters["Mode4"])
         Domoticz.Log("Read-only set to " + Parameters["Mode5"])
         Domoticz.Log("Debug set to " + Parameters["Mode6"])
+        try:
+            self.iDebugLevel = int(Parameters["Mode6"])
+        except ValueError:
+            self.iDebugLevel = 0
+            
         # most init
         self.__init__()
         # set refresh rate to its default value if not an integer
@@ -640,7 +651,7 @@ class BasePlugin:
             Domoticz.Error("Refresh rate parameter incorrect, set to its default value")
             self.iRefreshRate = 600
         # enable debug if required
-        if Parameters["Mode6"] == "Debug":
+        if self.iDebugLevel > 1:
             Domoticz.Debugging(1)            
         # set heartbeat interval	
         if self.iRefreshRate < self.maxHeartbeatInterval:
@@ -672,10 +683,10 @@ class BasePlugin:
         Domoticz.Debug("onConnect called")
         if self.bIsStarted:
             if ((Connection == self.jsonConn) and (Status == 0)):
-                Domoticz.Debug("onConnect for json called")
+                self.myDebug("onConnect for json called")
                 self.findDevices()
             elif ((Connection == self.telnetConn) and (Status == 0)):
-                Domoticz.Debug("onConnect for telnet called")
+                self.myDebug("onConnect for telnet called")
                 self.sConnectionStep = "connected"
                 self.handleFifo()
 
@@ -690,7 +701,7 @@ class BasePlugin:
                 Status = int(Data["Status"])
 
                 if (Status == 200):
-                    Domoticz.Debug("Good Response received from ebusd : length " + str(len(sData)))
+                    self.myDebug("Good Response received from ebusd : length " + str(len(sData)))
                     #self.jsonConn.Disconnect()
                     # now parse
                     self.parseJson(sData)
@@ -700,14 +711,14 @@ class BasePlugin:
             # telnet answer, buffer may be incomplete, we wait for \n\n to be sure to get complete response, buffer completion is not handled by domoticz line protocol
             else:
                 sData = Data.decode("utf-8", "ignore")
-                # Domoticz.Debug("Received data size " + str(len(sData)) + ": '"+sData+"'")
+                # self.myDebug("Received data size " + str(len(sData)) + ": '"+sData+"'")
                 # we limit buffer size to keep memory, telnet answer shouldn't be big, as used by the plugin
                 if len(self.sBuffer) > 100000:
                     self.sBuffer = ""
                 self.sBuffer += sData
                 # \n\n is the end of telnet response send by ebusd
                 if sData.endswith("\n\n"):
-                    # Domoticz.Debug("Received buffer size " + str(len(self.sBuffer)) + ": '"+self.sBuffer+"'")
+                    # self.myDebug("Received buffer size " + str(len(self.sBuffer)) + ": '"+self.sBuffer+"'")
                     # now parse
                     self.parseTelnet(self.sBuffer)
                     # empty buffer
@@ -737,7 +748,7 @@ class BasePlugin:
     #   dUnit: dict
     def read(self, dUnit):
         if type(dUnit) is dict:
-            Domoticz.Debug("read called for circuit " + dUnit["circuit"] + " register " + dUnit["register"] + " field " + str(dUnit["fieldindex"]))
+            self.myDebug("read called for circuit " + dUnit["circuit"] + " register " + dUnit["register"] + " field " + str(dUnit["fieldindex"]))
             self.dqFifo.append({"operation":"read", "unit":dUnit})
             self.handleFifo()
         else:
@@ -756,14 +767,14 @@ class BasePlugin:
             # if there are more than one field, we must read all fields, modify the required field and write back all fields at once
             iFieldsCount = dUnit["fieldscount"]
             if iFieldsCount <= 1:
-                Domoticz.Debug("Will write " + sValue)
+                self.myDebug("Will write " + sValue)
                 self.dqFifo.append({"operation":"write", "unit":dUnit, "value":sValue})
                 # write then read to update Domoticz interface
                 self.dqFifo.append({"operation":"read", "unit":dUnit})
                 # launch commands in the queue
                 self.handleFifo()
             else:
-                Domoticz.Debug("Will write (more than one field) " + sValue)
+                self.myDebug("Will write (more than one field) " + sValue)
                 # read all fields first before write one field when more than one field in the message
                 self.dqFifo.append({"operation":"read", "unit":dUnit})
                 self.dqFifo.append({"operation":"write", "unit":dUnit, "value":sValue})
@@ -787,15 +798,15 @@ class BasePlugin:
             self.iConnectionTimestamp = timeNow
             # create connection
             if self.telnetConn == None:
-                Domoticz.Debug("handleFifo() create connection to " + Parameters["Address"] + ":" + Parameters["Port"])
+                self.myDebug("handleFifo() create connection to " + Parameters["Address"] + ":" + Parameters["Port"])
                 self.telnetConn = Domoticz.Connection(Name="Telnet", Transport="TCP/IP", Protocol="line", Address=Parameters["Address"], Port=Parameters["Port"])
             if not self.telnetConn.Connected():
-                Domoticz.Debug("Connect")
+                self.myDebug("Connect")
                 self.sConnectionStep = "connecting"
                 self.telnetConn.Connect()
             # or process queue
             else:
-                Domoticz.Debug("Handle")
+                self.myDebug("Handle")
                 # pop command from queue (first in first out)
                 # pop command from queue (first in first out)
                 sCommand = self.dqFifo.popleft()
@@ -813,7 +824,7 @@ class BasePlugin:
                         if Parameters["Mode4"] == "True" :
                             sRead = sRead + "-f "
                         sRead = sRead + " -v -c " + dUnit["circuit"] + " " + dUnit["register"] + "\r\n"
-                        Domoticz.Debug("Telnet write: " + sRead)
+                        self.myDebug("Telnet write: " + sRead)
                         self.telnetConn.Send(sRead)
                     # write command
                     elif self.sCurrentCommand == "write":
@@ -833,19 +844,19 @@ class BasePlugin:
                                     sData = ";".join(lData)
                                     # telnet write command
                                     sWrite = "write -c " + dUnit["circuit"] + " " + dUnit["register"] + " " + sData + "\r\n"
-                                    Domoticz.Debug("Telnet write: " + sWrite)
+                                    self.myDebug("Telnet write: " + sWrite)
                                     self.telnetConn.Send(sWrite)
                             else:
                                 Domoticz.Error("Data cached is too old or inexistent, won't take the risk to modify many fields at once")
                         else:
                             # telnet write command if only one field in message
                             sWrite = "write -c " + dUnit["circuit"] + " " + dUnit["register"] + " " + sCommand["value"] + "\r\n"
-                            Domoticz.Debug("Telnet write: " + sWrite)
+                            self.myDebug("Telnet write: " + sWrite)
                             self.telnetConn.Send(sWrite)
                     # Ignore username and password, I'm not sure when I should authenticate and it can be handled by ACL file directly by ebusd
                     #elif self.sCurrentCommand == "authenticate":
                             #sWrite = "auth " + Parameters["Username"] + " " + Parameters["Password"] + "\r\n"
-                            #Domoticz.Debug("Telnet write:" + sWrite)
+                            #self.myDebug("Telnet write:" + sWrite)
                 else:
                     Domoticz.Error("Received command for unit in error state: " + dUnit)
         # the plugin seems blocked in connecting or data sending step, restart the plugin
