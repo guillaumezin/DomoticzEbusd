@@ -150,6 +150,8 @@ This is case insensitive (since version 1.1.7). The first part of a register is 
 
 You can add more than one ebusd-bridge hardware to Domoticz, for instance to get some registers as read-only and others as writable.
 
+In case of troubles, check that "Accept new Hardware Devices" is enabled, at least temporaly (in Setup / Settings / System / Hardware/Devices).
+
 ## Particular case of holiday mode
 Holiday mode can be activated only by setting a start and end date. If you set "holiday" to Hc1SFMode or Hc2SFMode, it won't be effective. Domoticz doesn't handle date devices, so f47:Hc1HolidayStartPeriod f47:Hc1HolidayEndPeriod f47:Hc2HolidayStartPeriod f47:Hc2HolidayEndPeriod will appear as read-only text devices. To set holiday mode from Domoticz, you can create a virtual switch and create a Lua or dzVents script, here is an example where "Holiday mode" is a virtual switch:
 ```
