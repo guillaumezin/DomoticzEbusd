@@ -181,7 +181,7 @@ Now you can set "On" and "Off", even using Timers, on "Holiday mode" virtual swi
 
 ## Script examples
 
-dsVents script to automatically switch from summer mode to auto mode
+dzVents script to automatically switch from summer mode to auto mode
 ```
 -- temperature to decide summer mode
 highTempLevel = 20
