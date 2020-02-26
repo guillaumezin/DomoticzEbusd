@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.4.0" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.4.1" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default="" password="true"/> -->
@@ -44,6 +44,7 @@ import time
 from collections import deque
 from collections import OrderedDict
 import collections
+import traceback
 
 # https://github.com/requests/requests/blob/master/requests/structures.py
 class CaseInsensitiveDict(collections.MutableMapping):
@@ -379,7 +380,7 @@ class BasePlugin:
             dJson = json.loads(sData, object_pairs_hook= lambda dict: CaseInsensitiveDict(dict))
             # dJson = json.loads(sData)
         except Exception as e:
-            Domoticz.Error("Impossible to parse JSON, got exception " + str(e))
+            Domoticz.Error("Impossible to parse JSON (buffer size " + str(len(sData)) + "). " + traceback.format_exc())
             return
         # register are separated with a space
         lUnits = Parameters["Mode2"].lower().split(" ")
