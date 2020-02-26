@@ -11,7 +11,7 @@ This is a hobby project, use it if you know what you are doing and at your own r
 Domoticz version must be at least 3.9085.
 
 You need to have [ebusd](https://github.com/john30/ebusd) daemon installed, maybe you can install a package directly from [releases](https://github.com/john30/ebusd/releases), and you need to install it with its [configuration files](https://github.com/john30/ebusd-configuration), accessible from network to Domoticz and obviously, a [hardware supported by ebusd](https://github.com/john30/ebusd/wiki/6.-Hardware).
-The plugin has been tested with ebusd version 3.0.595c7c0 and a Vaillant ecoTEC plus VUI FR 306/5-5 R5 boiler with a calorMATIC VRC470f wireless remote control and VR61/4 underfloor heating system kit.
+The plugin has been tested with ebusd versions 3.0.595c7c0 and 3.4 and a Vaillant ecoTEC plus VUI FR 306/5-5 R5 boiler with a calorMATIC VRC470f wireless remote control and VR61/4 underfloor heating system kit.
 Check first that ebusd is working properly with the following command directly on the device hosting ebusd:
 ```
 ebusctl find

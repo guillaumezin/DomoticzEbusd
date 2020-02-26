@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.4.1" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.4.2" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default="" password="true"/> -->
@@ -706,7 +706,6 @@ class BasePlugin:
                     #self.jsonConn.Disconnect()
                     # now parse
                     self.parseJson(sData)
-
                 else:
                     Domoticz.Error("ebusd JSON HTTP interface returned a status: " + str(Status))
             # telnet answer, buffer may be incomplete, we wait for \n\n to be sure to get complete response, buffer completion is not handled by domoticz line protocol
@@ -800,7 +799,7 @@ class BasePlugin:
             # create connection
             if self.telnetConn == None:
                 self.myDebug("handleFifo() create connection to " + Parameters["Address"] + ":" + Parameters["Port"])
-                self.telnetConn = Domoticz.Connection(Name="Telnet", Transport="TCP/IP", Protocol="line", Address=Parameters["Address"], Port=Parameters["Port"])
+                self.telnetConn = Domoticz.Connection(Name="Telnet", Transport="TCP/IP", Protocol="", Address=Parameters["Address"], Port=Parameters["Port"])
             if not self.telnetConn.Connected():
                 self.myDebug("Connect")
                 self.sConnectionStep = "connecting"
