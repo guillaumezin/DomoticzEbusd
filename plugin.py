@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.4.2" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.4.3" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default="" password="true"/> -->
@@ -759,7 +759,10 @@ class BasePlugin:
     #   ifLevel: integer or float: value to write
     def write(self, iUnitNumber, sCommand, ifValue, sValue):
         Domoticz.Debug("write called for unit " + str(iUnitNumber) + " command " + sCommand + " value " + str(ifValue) + " / " + sValue)
-        if iUnitNumber in self.dUnitsByUnitNumber:
+        if Parameters["Mode5"] == "True":
+            Domoticz.Debug("Cannot write device " + str(iUnitNumber) + " because the read-only parameter is set")
+            return
+        elif iUnitNumber in self.dUnitsByUnitNumber:
             dUnit = self.dUnitsByUnitNumber[iUnitNumber]
             # convert domoticz command and level to ebusd string value
             sValue = valueDomoticzToEbusd(dUnit, sCommand, ifValue, sValue, Devices[iUnitNumber].nValue, Devices[iUnitNumber].sValue)
@@ -827,7 +830,7 @@ class BasePlugin:
                         self.myDebug("Telnet write: " + sRead)
                         self.telnetConn.Send(sRead)
                     # write command
-                    elif self.sCurrentCommand == "write":
+                    elif self.sCurrentCommand == "write" and (not (Parameters["Mode5"] == "True")):
                         iFieldsCount = dUnit["fieldscount"]
                         # we have more than one field, retrieve all fields value (from last read) if not too old, modify the field and write
                         if iFieldsCount > 1:
