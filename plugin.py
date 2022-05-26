@@ -44,10 +44,10 @@ import time
 import sys
 from collections import deque
 from collections import OrderedDict
-if sys.version_info.major == 3 and sys.version_info.minor >= 10
+if (sys.version_info.major == 3) and (sys.version_info.minor >= 10):
     from collections.abc import MutableMapping
     from collections.abc import Mapping
-else 
+else:
     from collections import MutableMapping
     from collections import Mapping
 import traceback
