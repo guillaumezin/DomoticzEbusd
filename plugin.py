@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.4.4" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="1.4.5" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default="" password="true"/> -->
@@ -51,6 +51,7 @@ else:
     from collections import MutableMapping
     from collections import Mapping
 import traceback
+import re
 
 # https://github.com/requests/requests/blob/master/requests/structures.py
 class CaseInsensitiveDict(MutableMapping):
@@ -80,17 +81,21 @@ class CaseInsensitiveDict(MutableMapping):
         if data is None:
             data = {}
         self.update(data, **kwargs)
+        
+    # lower and remove substring between []
+    def __lowerAndFilter(self, key):
+        return re.sub(r'\[.+?\]', '', key).lower()
 
     def __setitem__(self, key, value):
         # Use the lowercased key for lookups, but store the actual
         # key alongside the value.
-        self._store[key.lower()] = (key, value)
+        self._store[self.__lowerAndFilter(key)] = (key, value)
 
     def __getitem__(self, key):
-        return self._store[key.lower()][1]
+        return self._store[self.__lowerAndFilter(key)][1]
 
     def __delitem__(self, key):
-        del self._store[key.lower()]
+        del self._store[self.__lowerAndFilter(key)]
 
     def __iter__(self):
         return (casedkey for casedkey, mappedvalue in self._store.values())
@@ -416,7 +421,7 @@ class BasePlugin:
                         
                     # look for circuit/message in JSON
                     if (sCircuit in dJson) and ("messages" in dJson[sCircuit]) and (sMessage in dJson[sCircuit]["messages"]):
-                        self.myDebug("Found")
+                        self.myDebug("Register found")
                         # check if writable
                         sWKey = sMessage + "-w"
                         if (not (Parameters["Mode5"] == "True")) and (sWKey in dJson[sCircuit]["messages"]) and ("write" in dJson[sCircuit]["messages"][sWKey]) and dJson[sCircuit]["messages"][sWKey]["write"] :
