@@ -8,7 +8,7 @@ This is a hobby project, use it if you know what you are doing and at your own r
 
 ## Prerequisites
 
-Domoticz version must be at least 3.9085.
+Domoticz version must be at least 2024.1.
 
 You need to have [ebusd](https://github.com/john30/ebusd) daemon installed, maybe you can install a package directly from [releases](https://github.com/john30/ebusd/releases), and you need to install it with its [configuration files](https://github.com/john30/ebusd-configuration), accessible from network to Domoticz and obviously, a [hardware supported by ebusd](https://github.com/john30/ebusd/wiki/6.-Hardware).
 The plugin has been tested with ebusd versions 3.0.595c7c0 and 3.4 and a Vaillant ecoTEC plus VUI FR 306/5-5 R5 boiler with a calorMATIC VRC470f wireless remote control and VR61/4 underfloor heating system kit.
@@ -23,6 +23,7 @@ telnet 192.168.0.10 8888
 find
 quit
 ```
+
 You should get the same list as the previous command.
 
 I advise to limit telnet access on you ebusd hosting device to the device hosting Domoticz, for instance, I added the following to my "/etc/rc.local":
@@ -30,10 +31,10 @@ I advise to limit telnet access on you ebusd hosting device to the device hostin
 iptables -A INPUT -p tcp ! -s 192.168.0.11 --dport 8888 -j DROP
 
 ```
+
 Change IP address to Domoticz hosting device IP address, change port to your telnet port number if different. 
 
 For the plugin to work, ebusd must be started with HTTP JSON --httpport option, for instance on port 8889. I had to change my "/etc/default/ebusd" after installing the .deb package for raspberry pi:
-
 ```
 # /etc/default/ebusd:
 # config file for ebusd service.
@@ -124,7 +125,6 @@ Then you can open and see available registers from your favorite internet browse
 ## Installing
 
 Copy the plugin.py to domoticz directory/plugins/DomoticzEbusd or change directory to domoticz directory/plugins and issue the following command:
-
 ```
 git clone https://github.com/guillaumezin/DomoticzEbusd
 ```
@@ -134,19 +134,28 @@ To update, overwrite plugin.py or change directory to domoticz directory/plugins
 git pull
 ```
 
-Give the execution permission, for Linux:
+Restart Domoticz.
+
+If you don't see the plugin in the hardware configuration tab, give for everyone read permission to plugin and read and execute permission for directory, for Linux:
 ```
-chmod ugo+x plugin.py
+cd whatever/plugins
+chmod ugo+rx DomoticzEbusd
+chmod ugo+r DomoticzEbusd/plugin.py
 ```
 
 Restart Domoticz.
 
 ## Configuration
-Add the ebusd-bridge hardware in Domoticz hardware configuration tab, giving the ebusd hosting device IP address or name, the telnet port, the HTTP JSON port, the registers, and set the refresh rate, read-only mode and debug mode. The refresh rate reads the registers values at the given rate in seconds. You can add many registers separated by space. The registers must be given with the following convention:
+Add the ebusd-bridge hardware in Domoticz hardware configuration tab, giving the ebusd hosting device IP address or name, the telnet port, the HTTP JSON port, the registers, and set the refresh rate, read-only mode and debug mode. The refresh rate reads the registers values at the given rate in seconds.
+
+The registers parameter can be left empty. In that case, the plugin will create devices for every register. However it is recommended to limit to useful register. It is advised to create a first hardware with registers parameter, to restart Domoticz, to look at devices created and to keep only useful registers by creating a new ebusd-bridge hardware with registers filled-in then to delete the first ebusd-bridge hardware.
+
+You can add many registers separated by space. The register names have following convention:
 ```
 broadcast:outsidetemp bai:SetMode:hcmode bai:SetMode:2 bai:SetMode:hwcflowtempdesired f47:RoomTemp:0 f47:Hc1OPMode mc:InternalOperatingMode470 mc:Flow1Sensor mc:FlowTempDesired bai:FlowTemp bai:ReturnTemp bai:FlowTempDesired bai:StorageTemp f47:Hc1SFMode f47:Hc2SFMode bai:WaterPressure f47:Hc1HolidayStartPeriod f47:Hc1HolidayEndPeriod f47:Hc2HolidayStartPeriod f47:Hc2HolidayEndPeriod
 ```
-This is case insensitive (since version 1.1.7). The first part of a register is the circuit name, the second part must be a message name (third level of JSON data), and the third part is the index, or the name (possible only if different than "") of field in fielddefs of a message in JSON data, and is optional (field index 0 by default). For instance "bai:SetMode:2" in my case gives "hwctempdesired" fielddefs value, i.e. the desired hot water  temperature, because it is the second field of bai->messages->SetMode register. It could have been configured with "bai:SetMode:hwctempdesired" directly. Starting version 1.3.8, fielddefs type "IGN" are ignored for index counting and name searching. For instance "bai:SetMode:4" give the same result as "bai:SetMode:disablehc". To see available registers, open your favorite internet browser, for instance at this address: [http://192.168.0.10:8889/data?def](http://192.168.0.10:8889/data?def) (change IP address to ebusd hosting device IP address or name, change 8889 port to whatever port you configured for HTTP JSON):
+
+This is case insensitive. The first part of a register is the circuit name, the second part must be a message name (third level of JSON data), and the third part is the index, or the name (possible only if different than "") of field in fielddefs of a message in JSON data, and is optional (field index 0 by default). For instance "bai:SetMode:2" in my case gives "hwctempdesired" fielddefs value, i.e. the desired hot water  temperature, because it is the second field of bai->messages->SetMode register. It could have been configured with "bai:SetMode:hwctempdesired" directly. Fielddefs type "IGN" are ignored for index counting and name searching. For instance "bai:SetMode:4" give the same result as "bai:SetMode:disablehc". You can use [Python regular expression](https://docs.python.org/3/library/re.html) inside register names, for instance f47:.\*temp.\* corresponds to every messages containing temp in message name for f47 circuit.
 
 You can add more than one ebusd-bridge hardware to Domoticz, for instance to get some registers as read-only and others as writable.
 
@@ -177,6 +186,7 @@ return {
 	end
 }
 ```
+
 Now you can set "On" and "Off", even using Timers, on "Holiday mode" virtual switch, to disable heating circuits. Hot water production will be disabled automatically when all heating circuits are in holiday mode with my calorMATIC VRC470f control. This will work with Domoticz from version 3.9415 onwards, because on earlier version, update() methods from Lua and dzVents event scripts are not passed to python plugins.
 
 ## Script examples
@@ -246,6 +256,86 @@ return {
     end
 }
 ```
+
+## Install Domoticz and Ebusd with docker compose
+
+[Docker compose](https://docs.docker.com/compose/) is a convenient way to install and execute Domoticz and Ebusd together.
+
+The following `docker-compose.yml` file gives an example to install Ebusd with the "docker compose build" command:
+```
+version: "3"
+services:
+    ebusd:
+        container_name: ebusd
+        volumes:
+            - ./config:/opt/config
+            - /dev:/host_dev
+        ports:
+            - "127.0.0.1:8888:8888"
+            - "8889:8889"
+        environment:
+            - EBUSD_SCANCONFIG
+            - EBUSD_DEVICE=/dev/ttyUSB0
+            - EBUSD_CONFIGLANG=en
+            - EBUSD_LOG=all error
+            - EBUSD_HTTPORT=8889
+        image: john30/ebusd
+        networks:
+            - ebusd
+
+networks:
+  ebusd:
+    name: ebusd
+    driver: bridge
+    attachable: true
+```
+Please note that with this configuration, to access to telnet prompt, this will only possible from the machine executing docker. The address in plugin parameters will have to be the external IP address of the machine executing docker, for instance 192.168.1.100, the address 127.0.0.1 will not work.
+
+The following `docker-compose.yml` file example indicates how to put ebusd and domoticz in a private network:
+```
+version: '3'
+  ebusd:
+    container_name: ebusd
+    volumes:
+        - ../ebusd-docker-compose/config:/opt/config
+    ports:
+        - "127.0.0.1:8888:8888"
+    expose:
+        - "8889"
+    environment:
+        - EBUSD_SCANCONFIG
+        - EBUSD_DEVICE=/dev/ttyUSB0
+        - EBUSD_CONFIGLANG=en
+        - EBUSD_LOG=all error
+        - EBUSD_HTTPPORT=8889
+    image: john30/ebusd
+    networks:
+        - domoticz
+
+  domoticz:
+    image: domoticz/domoticz:2024.1
+    container_name: domoticz
+    depends_on:
+      - ebusd
+    ports:
+      - "8080:8080"
+      - "443:443"
+    volumes:
+      - ./config:/opt/domoticz/userdata
+    environment:
+      - TZ=Europe/Paris
+      #- LOG_PATH=/opt/domoticz/userdata/domoticz.log
+    networks:
+      - domoticz
+
+networks:
+  domoticz:
+    name: domoticz
+    driver: bridge
+```
+
+`../ebusd-docker-compose/config` must be created, to contain ebusd config. `./config` must be created to contain Domoticz config. `./config/plugins` is the directory to put Domoticz plugins. Please note that with this configuration, to access to telnet prompt, this will only possible from the machine executing docker and only Domoticz will be able to access 8889 port. The address in plugin parameters will have to be "ebusd".
+
 
 ## Authors
 
