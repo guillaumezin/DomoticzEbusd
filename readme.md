@@ -164,7 +164,7 @@ The search is based on [Python regular expression](https://docs.python.org/3/lib
 * `broadcast:outsidetemp:` will match all fields of message `outsidetemp` of circuit `broadcast`
 * `^f47:hc` will match all fields of all message names beginning with `hc` of circuit `f47` (all fields of `f47:Hc1OPMode:`, `f47:Hc1SFMode:` and `f47:Hc2SFMode:`)
 * `^f47:.\*temp.\*` will match all fields of all message names containing temp for circuit `f47` (`f47:RoomTemp:`)
-* `.*:.*period:.*` will match every messages ending with `period` (`f47:Hc1HolidayStartPeriod:`, `f47:Hc1HolidayEndPeriod:`, `f47:Hc2HolidayStartPeriod:`, `f47:Hc2HolidayEndPeriod:`)
+* `:.*period:` will match every messages ending with `period` (`f47:Hc1HolidayStartPeriod:`, `f47:Hc1HolidayEndPeriod:`, `f47:Hc2HolidayStartPeriod:`, `f47:Hc2HolidayEndPeriod:`)
 * `:hwcflowtempdesired$` will match all registers with a field named `hwcflowtempdesired`
 
 You can add more than one ebusd-bridge hardware to Domoticz, for instance to get some registers as read-only and others as writable.
