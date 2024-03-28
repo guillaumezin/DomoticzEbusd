@@ -157,14 +157,14 @@ broadcast:outsidetemp: bai:SetMode:hcmode bai:SetMode:2 bai:SetMode:hwcflowtempd
 
 This is case insensitive. The first part of a register is the circuit name, the second part must be a message name (third level of JSON data), and the third part is the index, or the name (possible only if different than "") of field in fielddefs of a message in JSON data.
 
-For instance `bai:SetMode:2` in my case gives `hwctempdesired`fielddefs value, i.e. the desired hot water temperature, because it is the second field of bai->messages->SetMode register. It could have been configured with `bai:SetMode:hwctempdesired` directly. Fielddefs type "IGN" are ignored for index counting and name searching. For instance `bai:SetMode:4` give the same result as `bai:SetMode:disablehc`. 
+For instance `bai:SetMode:2` in my case gives `hwctempdesired` fielddefs value, i.e. the desired hot water temperature, because it is the second field of bai->messages->SetMode register. It could have been configured with `bai:SetMode:hwctempdesired` directly. Fielddefs type "IGN" are ignored for index counting and name searching. For instance `bai:SetMode:4` give the same result as `bai:SetMode:disablehc`. 
 
-The search is based on [Python regular expression](https://docs.python.org/3/library/re.html), meaning for instance that
-* `Flow` will match all registers containing `Flow` in any position of the complete register name (all fields of `mc:Flow1Sensor:`, `mc:FlowTempDesired:`, `bai:FlowTemp:` and `bai:FlowTempDesired` plus `bai:SetMode:hwcflowtempdesired`)
+The search is based on [Python regular expression](https://docs.python.org/3/library/re.html), meaning for instance that:
+* `flow` will match all registers containing `flow` in any position of the complete register name (all fields of `mc:Flow1Sensor:`, `mc:FlowTempDesired:`, `bai:FlowTemp:` and `bai:FlowTempDesired` plus `bai:SetMode:hwcflowtempdesired`)
 * `broadcast:outsidetemp:` will match all fields of message `outsidetemp` of circuit `broadcast`
-* `^f47:hc` will match all messages beginning `hc` of circuit `f47` (all fields of `f47:Hc1OPMode:`, `f47:Hc1SFMode:` and `f47:Hc2SFMode:`)
-* `^f47:.\*temp.\*` will match all message names containing temp for circuit `f47`
-* `.*:.*period:.*` will match every messages ending with `period`
+* `^f47:hc` will match all fields of all message names beginning with `hc` of circuit `f47` (all fields of `f47:Hc1OPMode:`, `f47:Hc1SFMode:` and `f47:Hc2SFMode:`)
+* `^f47:.\*temp.\*` will match all fields of all message names containing temp for circuit `f47` (`f47:RoomTemp:`)
+* `.*:.*period:.*` will match every messages ending with `period` (`f47:Hc1HolidayStartPeriod:`, `f47:Hc1HolidayEndPeriod:`, `f47:Hc2HolidayStartPeriod:`, `f47:Hc2HolidayEndPeriod:`)
 * `:hwcflowtempdesired$` will match all registers with a field named `hwcflowtempdesired`
 
 You can add more than one ebusd-bridge hardware to Domoticz, for instance to get some registers as read-only and others as writable.
