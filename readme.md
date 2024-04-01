@@ -148,11 +148,11 @@ Restart Domoticz.
 ## Configuration
 Add the ebusd-bridge hardware in Domoticz hardware configuration tab, giving the ebusd hosting device IP address or name, the telnet port, the HTTP JSON port, the registers, and set the refresh rate, read-only mode and debug mode. The refresh rate reads the registers values at the given rate in seconds.
 
-The registers parameter can be left empty. In that case, the plugin will create devices for every register. However it is recommended to limit to useful register. It is advised to create a first hardware with registers parameter, to restart Domoticz, to look at devices created and to keep only useful registers by creating a new ebusd-bridge hardware with registers filled-in then to delete the first ebusd-bridge hardware.
+The registers parameter can be left empty. In that case, the plugin will create devices for every register. You can have a look to Setup / Log / Status tab the see created registers. However it is recommended to limit to useful registers. It is advised to create a first hardware with empty registers parameter, then to restart Domoticz, to look at devices created and to keep only useful registers by creating a new ebusd-bridge hardware with registers filled-in then to delete the first ebusd-bridge hardware.
 
-You can add many registers separated by space. The register names have following convention:
+You can add many registers separated by space. Registers preceded with character `!` will be excluded. The register names have following convention:
 ```
-broadcast:outsidetemp: bai:SetMode:hcmode bai:SetMode:2 bai:SetMode:hwcflowtempdesired f47:RoomTemp:0 f47:Hc1OPMode: mc:InternalOperatingMode470: mc:Flow1Sensor: mc:FlowTempDesired: bai:FlowTemp: bai:ReturnTemp: bai:FlowTempDesired: bai:StorageTemp: f47:Hc1SFMode: f47:Hc2SFMode: bai:WaterPressure: f47:Hc1HolidayStartPeriod: f47:Hc1HolidayEndPeriod: f47:Hc2HolidayStartPeriod: f47:Hc2HolidayEndPeriod:
+broadcast:outsidetemp: bai:SetMode:hcmode bai:SetMode:2 bai:SetMode:hwcflowtempdesired f47:RoomTemp:0 f47:Hc1OPMode: mc:InternalOperatingMode470: mc:Flow1Sensor: mc:FlowTempDesired: bai:FlowTemp: bai:ReturnTemp: bai:FlowTempDesired: bai:StorageTemp: f47:Hc1SFMode: f47:Hc2SFMode: bai:WaterPressure: f47:Hc1HolidayStartPeriod: f47:Hc1HolidayEndPeriod: f47:Hc2HolidayStartPeriod: f47:Hc2HolidayEndPeriod: !:sensor$
 ```
 
 This is case insensitive. The first part of a register is the circuit name, the second part must be a message name (third level of JSON data), and the third part is the index, or the name (possible only if different than "") of field in fielddefs of a message in JSON data.
@@ -166,6 +166,7 @@ The search is based on [Python regular expression](https://docs.python.org/3/lib
 * `^f47:.*temp.*` will match all fields of all message names containing temp for circuit `f47` (`f47:RoomTemp:`)
 * `:.*period:` will match every messages ending with `period` (all fields of `f47:Hc1HolidayStartPeriod:`, `f47:Hc1HolidayEndPeriod:`, `f47:Hc2HolidayStartPeriod:`, `f47:Hc2HolidayEndPeriod:`)
 * `:hwcflowtempdesired$` will match all registers with a field named `hwcflowtempdesired` (bai:SetMode:hwcflowtempdesired)
+* `!:sensor$` will exclude all registers with a field named `sensor`
 
 You can add more than one ebusd-bridge hardware to Domoticz, for instance to get some registers as read-only and others as writable.
 

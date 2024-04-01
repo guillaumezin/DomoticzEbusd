@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="2.0.1" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="2.0.2" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default="" password="true"/> -->
@@ -164,6 +164,8 @@ class BasePlugin:
     iRefreshFindDeviceRate = 600
     # regex to search message
     sRegExSearch = None
+    # regex to exclude message
+    sRegExExclude = None
     # dictionnary of messages extracted from json, structured as keys wih circuit:message and circuit:message:fieldindex and pointing to json iFieldElement
     dMessages = None
     # dictionnary of dictonnaries, keyed by deviceid string (circuit:register:fieldindex, for instance "f47:OutsideTemp:0")
@@ -211,6 +213,7 @@ class BasePlugin:
         self.telnetConn = None
         self.jsonConn = None
         self.sRegExSearch = None
+        self.sRegExExclude = None
         self.dMessages = {}
         self.dUnitsByDeviceID = {}
         self.dUnits3D = {}
@@ -370,19 +373,31 @@ class BasePlugin:
                                 self.dMessages[sCircuit+":"+sMessage+":"+str(iFieldIndex)] = dMessageItem
                                 for dField in dMessageItem["fielddefs"]:
                                     if "name" in dField and dField["name"]:
-                                        self.dMessages[sCircuit+":"+sMessage+":"+dField["name"]] = dMessageItem
+                                        self.dMessages[sCircuit+":"+sMessage+":"+dField["name"].lower()] = dMessageItem
                                         # self.myDebug("Add " + sCircuit+":"+sMessage+":"+dField["name"] + " to messages list")
                 
         timeNow = time.time()
         
         if not self.sRegExSearch:
-            sUnits = self.sParamRegisters.strip()
-            if len(sUnits) == 0 :
+            lUnits = shlex.split(self.sParamRegisters.strip())
+            lUnitsSearch = []
+            lUnitsExclude = []
+            for sUnit in lUnits:
+                if sUnit.startswith("!"):
+                    sUnitFixed = sUnit[1:]
+                    if sUnitFixed:
+                        lUnitsExclude.append(sUnitFixed)
+                else:
+                    lUnitsSearch.append(sUnit)
+            if len(lUnitsSearch) == 0 :
                 self.sRegExSearch = re.compile(".*", re.IGNORECASE)
             else:
-                self.sRegExSearch = re.compile("|".join(shlex.split(sUnits)), re.IGNORECASE)
+                self.sRegExSearch = re.compile("|".join(lUnitsSearch), re.IGNORECASE)
+            if len(lUnitsExclude) >= 0 :
+                self.sRegExExclude = re.compile("|".join(lUnitsExclude), re.IGNORECASE)
         
         self.myDebug("Search pattern is " + str(self.sRegExSearch))
+        self.myDebug("Exclude pattern is " + str(self.sRegExExclude))
             
         for sRegister in self.dMessages:
             # sDeviceIDField0 = sRegister + ":0"
@@ -409,6 +424,7 @@ class BasePlugin:
                 self.myDebug("Look for field " + sFieldIndex + " in JSON data")
                 iFieldsCount = 0
                 iFieldAbsoluteIndex = -1
+                sFieldName = ""
                 if sFieldIndex.isdigit():
                     iFieldIndex = int(sFieldIndex)
                     for iAllFieldsIndex, dAllFieldDefs in enumerate(dMessage["fielddefs"]):
@@ -416,6 +432,8 @@ class BasePlugin:
                         if sAllFieldType != "ignore":
                             if iFieldIndex == iFieldsCount:
                                 iFieldAbsoluteIndex = iAllFieldsIndex                                    
+                                sFieldName = dAllFieldDefs["name"].lower()
+                                break
                             iFieldsCount += 1
                 else:
                     for iAllFieldsIndex, dAllFieldDefs in enumerate(dMessage["fielddefs"]):
@@ -423,8 +441,10 @@ class BasePlugin:
                         if sAllFieldType != "ignore":
                             if dAllFieldDefs["name"].lower() == sFieldIndex:
                                 iFieldIndex = iFieldsCount
+                                sFieldName = sFieldIndex
                                 iFieldAbsoluteIndex = iAllFieldsIndex                                    
-                                self.myDebug("Field number of device " + sRegister + " is " + str(iFieldIndex))
+                                self.myDebug("Field number of register " + sRegister + " is " + str(iFieldIndex))
+                                break
                             iFieldsCount += 1
                 if iFieldAbsoluteIndex < 0:
                         Domoticz.Error("Cannot find usable field for device " + sRegister)
@@ -442,6 +462,19 @@ class BasePlugin:
                     
                 # count fields and keep track of field index, absolute and relative (ignoring IGN fields)
                 sDeviceIntegerID = sCircuit + ":" + sMessage + ":" + str(iFieldIndex)
+                sDeviceIntegerIDAndName = sDeviceIntegerID
+                
+                # exclude registers based on field id or name
+                if self.sRegExExclude and self.sRegExExclude.search(sDeviceIntegerID) :
+                    continue
+                if sFieldName:
+                    sDeviceIntegerName = sCircuit + ":" + sMessage + ":" + sFieldName
+                    sDeviceIntegerIDAndName = sDeviceIntegerID + " / " + sDeviceIntegerName
+                    if self.sRegExExclude and self.sRegExExclude.search(sDeviceIntegerName) :
+                        self.myDebug("Exclude " + sRegister + " based on exclude patterne")
+                        continue
+                else:
+                    sDeviceIntegerIDAndName = sDeviceIntegerID
                 
                 # we skip if already added (by field id or field name or previous parse)
                 if sDeviceIntegerID in self.dUnitsByDeviceID:
@@ -547,7 +580,7 @@ class BasePlugin:
                                 oUnit.Update(Log=False)
                                 oUnit.Parent.TimedOut=0
                             # log device found, with dFieldDefs["name"] and dFieldDefs["comment"] giving hints on how to use register
-                            Domoticz.Log("Device " + oUnit.Name + " unit " + str(iIndexUnit) + " and deviceid " + sDeviceIntegerID + " detected: " + dFieldDefs["name"] + " - " + dFieldDefs["comment"])
+                            Domoticz.Status("Device " + oUnit.Name + " unit " + str(iIndexUnit) + " and register " + sDeviceIntegerIDAndName + " detected: " + dFieldDefs["name"] + " - " + dFieldDefs["comment"])
                             # if found, continue loop to next item
                             bFound = True
                             break
@@ -568,17 +601,17 @@ class BasePlugin:
                     if iSwitchType >= 0:
                         Domoticz.Unit(Name=sCompleteName, Unit=iIndexUnit, Type=iMainType, Subtype=iSubType, Switchtype=iSwitchType, Description=dFieldDefs["comment"], Options=dOptions, Used=1, DeviceID=sDeviceIntegerID).Create()
                         if (sDeviceIntegerID in Devices) and (iIndexUnit in Devices[sDeviceIntegerID].Units):
-                            Domoticz.Log("Add device " + sDeviceIntegerID + " unit " + str(iIndexUnit) + " as type " + str(iMainType) + ", subtype " + str(iSubType) + " and switchtype " + str(iSwitchType) + ": " + dFieldDefs["name"] + " - " + dFieldDefs["comment"])
+                            Domoticz.Status("Add register " + sDeviceIntegerIDAndName + " unit " + str(iIndexUnit) + " as type " + str(iMainType) + ", subtype " + str(iSubType) + " and switchtype " + str(iSwitchType) + ": " + dFieldDefs["name"] + " - " + dFieldDefs["comment"])
                         else:
-                            Domoticz.Error("Cannot add device " + sDeviceIntegerID + " unit " + str(iIndexUnit) + ". Check in settings that Domoticz is set up to accept new devices")
+                            Domoticz.Error("Cannot add register " + sDeviceIntegerIDAndName + " unit " + str(iIndexUnit) + ". Check in settings that Domoticz is set up to accept new devices")
                             self.bStillToLook = True
                             break
                     else:
                         Domoticz.Unit(Name=sCompleteName, Unit=iIndexUnit, Type=iMainType, Subtype=iSubType, Description=dFieldDefs["name"] + " - " + dFieldDefs["comment"], Options=dOptions, Used=1, DeviceID=sDeviceIntegerID).Create()
                         if (sDeviceIntegerID in Devices) and (iIndexUnit in Devices[sDeviceIntegerID].Units):
-                            Domoticz.Log("Add device " + sDeviceIntegerID + " unit " + str(iIndexUnit) + " as type " + str(iMainType) + " and subtype " + str(iSubType) + ": " + dFieldDefs["name"] + " - " + dFieldDefs["comment"])
+                            Domoticz.Status("Add register " + sDeviceIntegerIDAndName + " unit " + str(iIndexUnit) + " as type " + str(iMainType) + " and subtype " + str(iSubType) + ": " + dFieldDefs["name"] + " - " + dFieldDefs["comment"])
                         else:
-                            Domoticz.Error("Cannot add device " + sDeviceIntegerID + " unit " + str(iIndexUnit) + ". Check in settings that Domoticz is set up to accept new devices")
+                            Domoticz.Error("Cannot add register " + sDeviceIntegerIDAndName + " unit " + str(iIndexUnit) + ". Check in settings that Domoticz is set up to accept new devices")
                             self.bStillToLook = True
                             break
                     
