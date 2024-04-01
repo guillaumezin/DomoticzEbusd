@@ -581,7 +581,7 @@ class BasePlugin:
                                 oUnit.Parent.TimedOut=0
                             # log device found, with dFieldDefs["name"] and dFieldDefs["comment"] giving hints on how to use register
                             if dFieldDefs["comment"]:
-                                sComment = ": +"
+                                sComment = " - " + dFieldDefs["comment"]
                             else:
                                 sComment = ""
                             Domoticz.Status("Device " + oUnit.Name + " unit " + str(iIndexUnit) + " and register " + sDeviceIntegerIDAndName + " detected" + sComment)
