@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="2.0.2" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="2.0.3" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default="" password="true"/> -->
@@ -580,7 +580,11 @@ class BasePlugin:
                                 oUnit.Update(Log=False)
                                 oUnit.Parent.TimedOut=0
                             # log device found, with dFieldDefs["name"] and dFieldDefs["comment"] giving hints on how to use register
-                            Domoticz.Status("Device " + oUnit.Name + " unit " + str(iIndexUnit) + " and register " + sDeviceIntegerIDAndName + " detected: " + dFieldDefs["name"] + " - " + dFieldDefs["comment"])
+                            if dFieldDefs["comment"]:
+                                sComment = ": +"
+                            else:
+                                sComment = ""
+                            Domoticz.Status("Device " + oUnit.Name + " unit " + str(iIndexUnit) + " and register " + sDeviceIntegerIDAndName + " detected" + sComment)
                             # if found, continue loop to next item
                             bFound = True
                             break
@@ -601,15 +605,23 @@ class BasePlugin:
                     if iSwitchType >= 0:
                         Domoticz.Unit(Name=sCompleteName, Unit=iIndexUnit, Type=iMainType, Subtype=iSubType, Switchtype=iSwitchType, Description=dFieldDefs["comment"], Options=dOptions, Used=1, DeviceID=sDeviceIntegerID).Create()
                         if (sDeviceIntegerID in Devices) and (iIndexUnit in Devices[sDeviceIntegerID].Units):
-                            Domoticz.Status("Add register " + sDeviceIntegerIDAndName + " unit " + str(iIndexUnit) + " as type " + str(iMainType) + ", subtype " + str(iSubType) + " and switchtype " + str(iSwitchType) + ": " + dFieldDefs["name"] + " - " + dFieldDefs["comment"])
+                            if dFieldDefs["comment"]:
+                                sComment = " - " + dFieldDefs["comment"]
+                            else:
+                                sComment = ""
+                            Domoticz.Status("Add register " + sDeviceIntegerIDAndName + " unit " + str(iIndexUnit) + " as type " + str(iMainType) + ", subtype " + str(iSubType) + " and switchtype " + str(iSwitchType) + sComment)
                         else:
                             Domoticz.Error("Cannot add register " + sDeviceIntegerIDAndName + " unit " + str(iIndexUnit) + ". Check in settings that Domoticz is set up to accept new devices")
                             self.bStillToLook = True
                             break
                     else:
-                        Domoticz.Unit(Name=sCompleteName, Unit=iIndexUnit, Type=iMainType, Subtype=iSubType, Description=dFieldDefs["name"] + " - " + dFieldDefs["comment"], Options=dOptions, Used=1, DeviceID=sDeviceIntegerID).Create()
+                        if dFieldDefs["comment"]:
+                            sComment = " - " + dFieldDefs["comment"]
+                        else:
+                            sComment = ""
+                        Domoticz.Unit(Name=sCompleteName, Unit=iIndexUnit, Type=iMainType, Subtype=iSubType, Description=dFieldDefs["name"] + sComment, Options=dOptions, Used=1, DeviceID=sDeviceIntegerID).Create()
                         if (sDeviceIntegerID in Devices) and (iIndexUnit in Devices[sDeviceIntegerID].Units):
-                            Domoticz.Status("Add register " + sDeviceIntegerIDAndName + " unit " + str(iIndexUnit) + " as type " + str(iMainType) + " and subtype " + str(iSubType) + ": " + dFieldDefs["name"] + " - " + dFieldDefs["comment"])
+                            Domoticz.Status("Add register " + sDeviceIntegerIDAndName + " unit " + str(iIndexUnit) + " as type " + str(iMainType) + " and subtype " + str(iSubType) + sComment)
                         else:
                             Domoticz.Error("Cannot add register " + sDeviceIntegerIDAndName + " unit " + str(iIndexUnit) + ". Check in settings that Domoticz is set up to accept new devices")
                             self.bStillToLook = True
