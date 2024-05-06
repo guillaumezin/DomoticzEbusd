@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="2.0.3" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="2.0.4" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default="" password="true"/> -->
@@ -329,6 +329,7 @@ class BasePlugin:
     #   sData: string: data received
     def parseJson(self, sData):
         self.bStillToLook = False
+        self.myDebug("Parsing JSON data")
         try:
             dJson = json.loads(sData, object_pairs_hook= lambda dict: CaseInsensitiveDict(dict))
             # dJson = json.loads(sData)
@@ -342,8 +343,10 @@ class BasePlugin:
             iCount = dJson["global"]["messages"]
         if iCount == 0:
             self.bStillToLook = True
+            self.myDebug("No usable messages, will try again later")
             return
         if iCount == self.iJsonObjects:
+            self.myDebug("No new messages to parse, will try again later")
             return
         
         # self.myDebug("Building messages list for " + str(iCount) + " messages")
@@ -421,7 +424,7 @@ class BasePlugin:
                     bWritable = False
 
                 # try to get fieldnumber, if not an integer, try by name
-                self.myDebug("Look for field " + sFieldIndex + " in JSON data")
+                self.myDebug("Look for register " + sCircuit + ":" + sMessage + ":" + sFieldIndex + " in JSON data")
                 iFieldsCount = 0
                 iFieldAbsoluteIndex = -1
                 sFieldName = ""
@@ -466,18 +469,20 @@ class BasePlugin:
                 
                 # exclude registers based on field id or name
                 if self.sRegExExclude and self.sRegExExclude.search(sDeviceIntegerID) :
+                    self.myDebug("Exclude " + sRegister + " based on exclude pattern and field id")
                     continue
                 if sFieldName:
                     sDeviceIntegerName = sCircuit + ":" + sMessage + ":" + sFieldName
                     sDeviceIntegerIDAndName = sDeviceIntegerID + " / " + sDeviceIntegerName
                     if self.sRegExExclude and self.sRegExExclude.search(sDeviceIntegerName) :
-                        self.myDebug("Exclude " + sRegister + " based on exclude patterne")
+                        self.myDebug("Exclude " + sRegister + " based on exclude pattern and field name")
                         continue
                 else:
                     sDeviceIntegerIDAndName = sDeviceIntegerID
                 
                 # we skip if already added (by field id or field name or previous parse)
                 if sDeviceIntegerID in self.dUnitsByDeviceID:
+                    self.myDebug("Device " + sDeviceIntegerIDAndName + " skiped because already in dict")
                     continue
                 
                 dFieldDefs = dMessage["fielddefs"][iFieldAbsoluteIndex]
@@ -638,6 +643,8 @@ class BasePlugin:
                 self.dUnits3D[sCircuit][sMessage][iFieldIndex] = self.dUnitsByDeviceID[sDeviceIntegerID]
                 # place a read command in the queue for each device to refresh its value asap
                 self.read(self.dUnitsByDeviceID[sDeviceIntegerID])
+
+        self.myDebug("End of parsing JSON data")
 
     def onStart(self):
         Domoticz.Debug("onStart called")
