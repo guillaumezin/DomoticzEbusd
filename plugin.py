@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="2.0.4" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="2.0.5" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default="" password="true"/> -->
@@ -396,7 +396,7 @@ class BasePlugin:
                 self.sRegExSearch = re.compile(".*", re.IGNORECASE)
             else:
                 self.sRegExSearch = re.compile("|".join(lUnitsSearch), re.IGNORECASE)
-            if len(lUnitsExclude) >= 0 :
+            if len(lUnitsExclude) > 0 :
                 self.sRegExExclude = re.compile("|".join(lUnitsExclude), re.IGNORECASE)
         
         self.myDebug("Search pattern is " + str(self.sRegExSearch))
