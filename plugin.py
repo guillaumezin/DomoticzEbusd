@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="2.0.5" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="2.0.6" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default="" password="true"/> -->
@@ -364,21 +364,21 @@ class BasePlugin:
                 if ("messages" in dItem) and (sCircuit != "global"):
                     for sMessage, dMessageItem in dItem["messages"].items():                                                         
                         # self.myDebug("Exploring message " + sMessage)
-                        if ("name" in dMessageItem) and dMessageItem["name"] and ("fielddefs" in dMessageItem) and (len(dMessageItem["fielddefs"]) > 0):
+                        if ("name" in dMessageItem) and dMessageItem["name"] and ("fields" in dMessageItem) and (len(dMessageItem["fields"]) > 0) and ("fielddefs" in dMessageItem) and (len(dMessageItem["fielddefs"]) > 0):
                             sMessage = sMessage.lower()
                             sMessage = re.sub(r'\[.*\]', '', sMessage)
                             if sMessage.endswith("-w"):
                                 continue
                             # self.myDebug("Add " + sCircuit+":"+sMessage + " to messages list")
                             # self.dMessages[sCircuit+":"+sMessage] = dMessageItem
-                            for iFieldIndex, iFieldElement in enumerate(dMessageItem["fielddefs"]):
-                                # self.myDebug("Add " + sCircuit+":"+sMessage+":"+str(iFieldIndex) + " to messages list")
+                            for iFieldIndex, dFieldElement in enumerate(dMessageItem["fields"]):
+                                # Domoticz.Error("Add " + sCircuit+":"+sMessage+":"+str(iFieldIndex) + " to messages list")
                                 self.dMessages[sCircuit+":"+sMessage+":"+str(iFieldIndex)] = dMessageItem
-                                for dField in dMessageItem["fielddefs"]:
-                                    if "name" in dField and dField["name"]:
-                                        self.dMessages[sCircuit+":"+sMessage+":"+dField["name"].lower()] = dMessageItem
-                                        # self.myDebug("Add " + sCircuit+":"+sMessage+":"+dField["name"] + " to messages list")
-                
+                            for dFieldDefElement in dMessageItem["fielddefs"]:
+                                if "name" in dFieldDefElement and dFieldDefElement["name"] and "type" in dFieldDefElement and dFieldDefElement["type"] != "IGN" :
+                                    # self.myDebug("Add " + sCircuit+":"+sMessage+":"+dFieldDefElement["name"] + " to messages list")
+                                    self.dMessages[sCircuit+":"+sMessage+":"+dFieldDefElement["name"].lower()] = dMessageItem
+                                        
         timeNow = time.time()
         
         if not self.sRegExSearch:
@@ -465,7 +465,6 @@ class BasePlugin:
                     
                 # count fields and keep track of field index, absolute and relative (ignoring IGN fields)
                 sDeviceIntegerID = sCircuit + ":" + sMessage + ":" + str(iFieldIndex)
-                sDeviceIntegerIDAndName = sDeviceIntegerID
                 
                 # exclude registers based on field id or name
                 if self.sRegExExclude and self.sRegExExclude.search(sDeviceIntegerID) :
@@ -482,7 +481,7 @@ class BasePlugin:
                 
                 # we skip if already added (by field id or field name or previous parse)
                 if sDeviceIntegerID in self.dUnitsByDeviceID:
-                    self.myDebug("Device " + sDeviceIntegerIDAndName + " skiped because already in dict")
+                    self.myDebug("Device " + sRegister + " skiped because already in dict")
                     continue
                 
                 dFieldDefs = dMessage["fielddefs"][iFieldAbsoluteIndex]
