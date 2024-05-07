@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="2.0.6" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="2.0.7" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default="" password="true"/> -->
@@ -364,20 +364,23 @@ class BasePlugin:
                 if ("messages" in dItem) and (sCircuit != "global"):
                     for sMessage, dMessageItem in dItem["messages"].items():                                                         
                         # self.myDebug("Exploring message " + sMessage)
-                        if ("name" in dMessageItem) and dMessageItem["name"] and ("fields" in dMessageItem) and (len(dMessageItem["fields"]) > 0) and ("fielddefs" in dMessageItem) and (len(dMessageItem["fielddefs"]) > 0):
+                        if ("name" in dMessageItem) and dMessageItem["name"] and ("fielddefs" in dMessageItem) and (len(dMessageItem["fielddefs"]) > 0):
                             sMessage = sMessage.lower()
                             sMessage = re.sub(r'\[.*\]', '', sMessage)
                             if sMessage.endswith("-w"):
                                 continue
                             # self.myDebug("Add " + sCircuit+":"+sMessage + " to messages list")
                             # self.dMessages[sCircuit+":"+sMessage] = dMessageItem
-                            for iFieldIndex, dFieldElement in enumerate(dMessageItem["fields"]):
-                                # Domoticz.Error("Add " + sCircuit+":"+sMessage+":"+str(iFieldIndex) + " to messages list")
-                                self.dMessages[sCircuit+":"+sMessage+":"+str(iFieldIndex)] = dMessageItem
-                            for dFieldDefElement in dMessageItem["fielddefs"]:
-                                if "name" in dFieldDefElement and dFieldDefElement["name"] and "type" in dFieldDefElement and dFieldDefElement["type"] != "IGN" :
-                                    # self.myDebug("Add " + sCircuit+":"+sMessage+":"+dFieldDefElement["name"] + " to messages list")
-                                    self.dMessages[sCircuit+":"+sMessage+":"+dFieldDefElement["name"].lower()] = dMessageItem
+                            iFieldsCount = 0
+                            for iAllFieldsIndex, dAllFieldDefs in enumerate(dMessageItem["fielddefs"]):
+                                sAllFieldType = getFieldType(dAllFieldDefs["unit"], dAllFieldDefs["name"], dAllFieldDefs["type"])
+                                if sAllFieldType != "ignore":
+                                    self.myDebug("Add " + sCircuit+":"+sMessage+":"+str(iFieldsCount) + " to messages list by field id")
+                                    self.dMessages[sCircuit+":"+sMessage+":"+str(iFieldsCount)] = dMessageItem
+                                    iFieldsCount += 1
+                                    if "name" in dAllFieldDefs and dAllFieldDefs["name"] :
+                                        self.myDebug("Add " + sCircuit+":"+sMessage+":"+dAllFieldDefs["name"] + " to messages list by field name")
+                                        self.dMessages[sCircuit+":"+sMessage+":"+dAllFieldDefs["name"].lower()] = dMessageItem
                                         
         timeNow = time.time()
         
