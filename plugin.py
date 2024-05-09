@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="2.0.9" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="2.1.0" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default="" password="true"/> -->
@@ -544,12 +544,14 @@ class BasePlugin:
                     self.myDebug("LevelNames for Domoticz are " + sLevelNames)
                     dOptions = {"LevelActions": sLevelActions, "LevelNames": sLevelNames, "LevelOffHidden": "true", "SelectorStyle": "1"}
                 # number type, probably to improve
-                elif (sFieldType == "number") or (sFieldType == "custom") or (sFieldType == "1/min"):
+                elif (sFieldType == "number") or (sFieldType == "custom") or (sFieldType == "1/min") or (sFieldType == "hours"):
                     #sTypeName = "Custom"
                     iMainType = 0xF3
                     iSubType = 0x1F
                     if (sFieldType == "1/min"):
                         iImage = 7
+                    elif (sFieldType == "hours"):
+                        iImage = 21
                     dOptions = { "Custom": "1;" + str(dFieldDefs["unit"])}
                 # setpoint type
                 elif (sFieldType == "temperature") and bWritable:
@@ -824,7 +826,7 @@ class BasePlugin:
         elif sDeviceID in self.dUnitsByDeviceID:
             dUnit = self.dUnitsByDeviceID[sDeviceID]
             # convert domoticz command and level to ebusd string value
-            sValue = valueDomoticzToEbusd(dUnit, sCommand, ifValue, sValue, Devices[DeviceID].Units[iUnitNumber].nValue, Devices[DeviceID].Units[iUnitNumber].sValue)
+            sValue = valueDomoticzToEbusd(dUnit, sCommand, ifValue, sValue, Devices[sDeviceID].Units[iUnitNumber].nValue, Devices[sDeviceID].Units[iUnitNumber].sValue)
                     
             # if there are more than one field, we must read all fields, modify the required field and write back all fields at once
             iFieldsCount = dUnit["fieldscount"]
@@ -1060,6 +1062,8 @@ def getFieldType(dFieldDefs):
         return "percentage"
     if sFieldUnit == "1/min":
         return "1/min"
+    if sFieldUnit == "h":
+        return "hours"
     if sFieldUnit == "min":
         return "number"
     if sFieldUnit == "h":
