@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="2.0.8" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="2.0.9" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default="" password="true"/> -->
@@ -496,7 +496,8 @@ class BasePlugin:
                 self.myDebug("Field is type " + sFieldType)
 
                 #sTypeName = ""
-                iSwitchType = -1
+                iSwitchType = 0
+                iImage = 0
                 dValues = None
                 dOptions = {}
                 dOptionsMapping = {}
@@ -511,9 +512,7 @@ class BasePlugin:
                 if (sFieldType == "switchonoff") or (sFieldType == "switchyesno"):
                     iMainType = 0xF4
                     iSubType = 0x49
-                    if bWritable:
-                        iSwitchType = 0
-                    else:
+                    if not bWritable:
                         iSwitchType = 2
                     bHandleTimeout = True
                 # selector switch type
@@ -545,10 +544,12 @@ class BasePlugin:
                     self.myDebug("LevelNames for Domoticz are " + sLevelNames)
                     dOptions = {"LevelActions": sLevelActions, "LevelNames": sLevelNames, "LevelOffHidden": "true", "SelectorStyle": "1"}
                 # number type, probably to improve
-                elif (sFieldType == "number") or (sFieldType == "custom"):
+                elif (sFieldType == "number") or (sFieldType == "custom") or (sFieldType == "1/min"):
                     #sTypeName = "Custom"
                     iMainType = 0xF3
                     iSubType = 0x1F
+                    if (sFieldType == "1/min"):
+                        iImage = 7
                     dOptions = { "Custom": "1;" + str(dFieldDefs["unit"])}
                 # setpoint type
                 elif (sFieldType == "temperature") and bWritable:
@@ -593,10 +594,10 @@ class BasePlugin:
                             if (oUnit.Type != iMainType) or (oUnit.SubType != iSubType):
                                 Domoticz.Log("Device " + oUnit.Name + " type changed, updating Domoticz database")
                                 bForceRefresh = True
-                                if iSwitchType >= 0:
-                                    oUnit.SwitchType=iSwitchType
                                 oUnit.Type=iMainType
                                 oUnit.SubType=iSubType
+                                oUnit.SwitchType=iSwitchType
+                                oUnit.Image=iImage
                                 oUnit.Options=dOptions
                                 oUnit.Update(Log=False)
                                 oUnit.Parent.TimedOut=0
@@ -623,22 +624,13 @@ class BasePlugin:
                         continue
                         
                     # create device, log dFieldDefs["name"] and dFieldDefs["comment"] giving hints on how to use register
-                    if iSwitchType >= 0:
-                        Domoticz.Unit(Name=sCompleteName, Unit=iIndexUnit, Type=iMainType, Subtype=iSubType, Switchtype=iSwitchType, Description=dFieldDefs["comment"], Options=dOptions, Used=1, DeviceID=sDeviceIntegerID).Create()
-                        if (sDeviceIntegerID in Devices) and (iIndexUnit in Devices[sDeviceIntegerID].Units):
-                            Domoticz.Status("Add register " + sDeviceIntegerIDAndName + " unit " + str(iIndexUnit) + " as type " + str(iMainType) + ", subtype " + str(iSubType) + " and switchtype " + str(iSwitchType) + sComment)
-                        else:
-                            Domoticz.Error("Cannot add register " + sDeviceIntegerIDAndName + " unit " + str(iIndexUnit) + ". Check in settings that Domoticz is set up to accept new devices")
-                            self.bStillToLook = True
-                            break
+                    Domoticz.Unit(Name=sCompleteName, Unit=iIndexUnit, Type=iMainType, Subtype=iSubType, Switchtype=iSwitchType, Image=iImage, Description=dFieldDefs["comment"], Options=dOptions, Used=1, DeviceID=sDeviceIntegerID).Create()
+                    if (sDeviceIntegerID in Devices) and (iIndexUnit in Devices[sDeviceIntegerID].Units):
+                        Domoticz.Status("Add register " + sDeviceIntegerIDAndName + " unit " + str(iIndexUnit) + " as type " + str(iMainType) + ", subtype " + str(iSubType) + " and switchtype " + str(iSwitchType) + sComment)
                     else:
-                        Domoticz.Unit(Name=sCompleteName, Unit=iIndexUnit, Type=iMainType, Subtype=iSubType, Description=dFieldDefs["name"] + sComment, Options=dOptions, Used=1, DeviceID=sDeviceIntegerID).Create()
-                        if (sDeviceIntegerID in Devices) and (iIndexUnit in Devices[sDeviceIntegerID].Units):
-                            Domoticz.Status("Add register " + sDeviceIntegerIDAndName + " unit " + str(iIndexUnit) + " as type " + str(iMainType) + " and subtype " + str(iSubType) + sComment)
-                        else:
-                            Domoticz.Error("Cannot add register " + sDeviceIntegerIDAndName + " unit " + str(iIndexUnit) + ". Check in settings that Domoticz is set up to accept new devices")
-                            self.bStillToLook = True
-                            break
+                        Domoticz.Error("Cannot add register " + sDeviceIntegerIDAndName + " unit " + str(iIndexUnit) + ". Check in settings that Domoticz is set up to accept new devices")
+                        self.bStillToLook = True
+                        break
                     
                 # incorporate found or created device to local self.dUnits dictionnaries, to keep additionnal parameters used by the plugin
                 self.dUnitsByDeviceID[sDeviceIntegerID] = { "device":Devices[sDeviceIntegerID].Units[iIndexUnit], "circuit":sCircuit, "message":sMessage, "fieldindex":iFieldIndex, "fieldscount":iFieldsCount, "options":dOptionsMapping, "reverseoptions":dReverseOptionsMapping, "domoticzoptions": dOptions, "fieldtype": sFieldType, "forcerefresh": bForceRefresh, "alwaysrefresh": bAlwaysRefresh }
@@ -1066,6 +1058,8 @@ def getFieldType(dFieldDefs):
         return "pressure"
     if sFieldUnit == "%":
         return "percentage"
+    if sFieldUnit == "1/min":
+        return "1/min"
     if sFieldUnit == "min":
         return "number"
     if sFieldUnit == "h":
