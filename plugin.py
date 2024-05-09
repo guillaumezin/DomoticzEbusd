@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="2.0.7" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="2.0.8" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default="" password="true"/> -->
@@ -16,20 +16,22 @@
         <param field="Mode4" label="Disable cache" width="100px">
             <options>
                 <option label="True" value="True"/>
-                <option label="False" value="False"  default="true" />
+                <option label="False" value="False" default="true" />
             </options>
         </param>
-        <param field="Mode5" label="Read-only" width="100px">
+        <param field="Mode5" label="Read-only" width="450px">
             <options>
-                <option label="True" value="True"/>
-                <option label="False" value="False"  default="true" />
+                <option label="Read/write devices and automatically try to add discovered devices" value="False" default="true"/>
+                <option label="Read-only devices but automatically try to add discovered devices" value="True"/>
+                <option label="Read/write devices and don't add discovered devices" value="FalseNoAuto" />
+                <option label="Read-only devices and don't add discovered devices" value="TrueNoAuto"/>
             </options>
         </param>
         <param field="Mode6" label="Debug" width="100px">
             <options>
                 <option label="Advanced" value="2"/>
                 <option label="Enabled" value="1"/>
-                <option label="None" value="0"  default="true" />
+                <option label="None" value="0" default="true" />
             </options>
         </param>
     </params>
@@ -140,6 +142,8 @@ class BasePlugin:
     bParamDisableCache = False
     # boolean read-only from parameters
     bParamReadOnly = False
+    # boolean auto add discovered devices
+    bParamAutoAdd = False
     # boolean debug from parameters
     iParamDebug = 0
     # boolean to check that we are started, to prevent error messages when disabling or restarting the plugin
@@ -373,7 +377,7 @@ class BasePlugin:
                             # self.dMessages[sCircuit+":"+sMessage] = dMessageItem
                             iFieldsCount = 0
                             for iAllFieldsIndex, dAllFieldDefs in enumerate(dMessageItem["fielddefs"]):
-                                sAllFieldType = getFieldType(dAllFieldDefs["unit"], dAllFieldDefs["name"], dAllFieldDefs["type"])
+                                sAllFieldType = getFieldType(dAllFieldDefs)
                                 if sAllFieldType != "ignore":
                                     self.myDebug("Add " + sCircuit+":"+sMessage+":"+str(iFieldsCount) + " to messages list by field id")
                                     self.dMessages[sCircuit+":"+sMessage+":"+str(iFieldsCount)] = dMessageItem
@@ -434,7 +438,7 @@ class BasePlugin:
                 if sFieldIndex.isdigit():
                     iFieldIndex = int(sFieldIndex)
                     for iAllFieldsIndex, dAllFieldDefs in enumerate(dMessage["fielddefs"]):
-                        sAllFieldType = getFieldType(dAllFieldDefs["unit"], dAllFieldDefs["name"], dAllFieldDefs["type"])
+                        sAllFieldType = getFieldType(dAllFieldDefs)
                         if sAllFieldType != "ignore":
                             if iFieldIndex == iFieldsCount:
                                 iFieldAbsoluteIndex = iAllFieldsIndex                                    
@@ -443,7 +447,7 @@ class BasePlugin:
                             iFieldsCount += 1
                 else:
                     for iAllFieldsIndex, dAllFieldDefs in enumerate(dMessage["fielddefs"]):
-                        sAllFieldType = getFieldType(dAllFieldDefs["unit"], dAllFieldDefs["name"], dAllFieldDefs["type"])
+                        sAllFieldType = getFieldType(dAllFieldDefs)
                         if sAllFieldType != "ignore":
                             if dAllFieldDefs["name"].lower() == sFieldIndex:
                                 iFieldIndex = iFieldsCount
@@ -488,7 +492,8 @@ class BasePlugin:
                     continue
                 
                 dFieldDefs = dMessage["fielddefs"][iFieldAbsoluteIndex]
-                sFieldType = getFieldType(dFieldDefs["unit"], dFieldDefs["name"], dFieldDefs["type"])
+                sFieldType = getFieldType(dFieldDefs)
+                self.myDebug("Field is type " + sFieldType)
 
                 #sTypeName = ""
                 iSwitchType = -1
@@ -500,8 +505,7 @@ class BasePlugin:
                 # now we try to get the best match between domoticz sensor and ebusd field type
                 # https://github.com/domoticz/domoticz/blob/master/hardware/hardwaretypes.h ligne 42
                 # https://github.com/domoticz/domoticz/blob/master/hardware/plugins/PythonObjects.cpp ligne 410
-                sFieldType = getFieldType(dFieldDefs["unit"], dFieldDefs["name"], dFieldDefs["type"])
-                self.myDebug("Field is type " + sFieldType)
+
                 # on/off type
                 #if (sFieldType == "switch") and bWritable:
                 if (sFieldType == "switchonoff") or (sFieldType == "switchyesno"):
@@ -562,6 +566,12 @@ class BasePlugin:
                     iMainType = 0xF3
                     iSubType = 0x09
                     bAlwaysRefresh = True
+                # percentage type
+                elif (sFieldType == "percentage"):
+                    #sTypeName = "Percentage"
+                    iMainType = 0xF3
+                    iSubType = 0x06
+                    bAlwaysRefresh = True
                 # else text type
                 else:
                     #sTypeName = "Text"
@@ -571,6 +581,10 @@ class BasePlugin:
                 # check if device is already in domoticz database, based on deviceid
                 bFound = False
                 bForceRefresh = False
+                if dFieldDefs["comment"]:
+                    sComment = " - " + dFieldDefs["comment"]
+                else:
+                    sComment = ""
                 for sCurrentDeviceID, oDevice in Devices.items():
                     # .lower() for backward compatibility
                     if sCurrentDeviceID.lower() == sDeviceIntegerID:
@@ -587,10 +601,6 @@ class BasePlugin:
                                 oUnit.Update(Log=False)
                                 oUnit.Parent.TimedOut=0
                             # log device found, with dFieldDefs["name"] and dFieldDefs["comment"] giving hints on how to use register
-                            if dFieldDefs["comment"]:
-                                sComment = " - " + dFieldDefs["comment"]
-                            else:
-                                sComment = ""
                             Domoticz.Status("Device " + oUnit.Name + " unit " + str(iIndexUnit) + " and register " + sDeviceIntegerIDAndName + " detected" + sComment)
                             # if found, continue loop to next item
                             bFound = True
@@ -600,7 +610,6 @@ class BasePlugin:
                 # not in database: add device
                 if not bFound:
                     bForceRefresh = True
-                    # domoticz database doesn't handle more than 256 devices per plugin !
                     iIndexUnit = 1
                     # Create name
                     sCompleteName = sCircuit + " - " + sMessage
@@ -608,24 +617,21 @@ class BasePlugin:
                         sCompleteName += " - " + dFieldDefs["name"]
                     else:
                         sCompleteName += " - " + sFieldIndex
+                        
+                    if not self.bParamAutoAdd :
+                        self.myDebug("Found " + sDeviceIntegerIDAndName + sComment + " but not adding it because auto add is disabled")
+                        continue
+                        
                     # create device, log dFieldDefs["name"] and dFieldDefs["comment"] giving hints on how to use register
                     if iSwitchType >= 0:
                         Domoticz.Unit(Name=sCompleteName, Unit=iIndexUnit, Type=iMainType, Subtype=iSubType, Switchtype=iSwitchType, Description=dFieldDefs["comment"], Options=dOptions, Used=1, DeviceID=sDeviceIntegerID).Create()
                         if (sDeviceIntegerID in Devices) and (iIndexUnit in Devices[sDeviceIntegerID].Units):
-                            if dFieldDefs["comment"]:
-                                sComment = " - " + dFieldDefs["comment"]
-                            else:
-                                sComment = ""
                             Domoticz.Status("Add register " + sDeviceIntegerIDAndName + " unit " + str(iIndexUnit) + " as type " + str(iMainType) + ", subtype " + str(iSubType) + " and switchtype " + str(iSwitchType) + sComment)
                         else:
                             Domoticz.Error("Cannot add register " + sDeviceIntegerIDAndName + " unit " + str(iIndexUnit) + ". Check in settings that Domoticz is set up to accept new devices")
                             self.bStillToLook = True
                             break
                     else:
-                        if dFieldDefs["comment"]:
-                            sComment = " - " + dFieldDefs["comment"]
-                        else:
-                            sComment = ""
                         Domoticz.Unit(Name=sCompleteName, Unit=iIndexUnit, Type=iMainType, Subtype=iSubType, Description=dFieldDefs["name"] + sComment, Options=dOptions, Used=1, DeviceID=sDeviceIntegerID).Create()
                         if (sDeviceIntegerID in Devices) and (iIndexUnit in Devices[sDeviceIntegerID].Units):
                             Domoticz.Status("Add register " + sDeviceIntegerIDAndName + " unit " + str(iIndexUnit) + " as type " + str(iMainType) + " and subtype " + str(iSubType) + sComment)
@@ -652,22 +658,33 @@ class BasePlugin:
         Domoticz.Debug("onStart called")
         # Ignore username and password, I'm not sure when I should authenticate and it can be handled by ACL file directly by ebusd
         #Domoticz.Log("Username set to " + Parameters["Username"])
+
         self.sParamAddress = Parameters["Address"]
+
         try:
             self.iParamTelnetPort = int(Parameters["Port"])
         except ValueError:
             Domoticz.Error("HTTP port parameter incorrect, set to its default value")
+
         try:
             self.iParamJsonPort = int(Parameters["Mode1"])
         except ValueError:
             Domoticz.Error("JSON port parameter incorrect, set to its default value")
         self.sParamRegisters = Parameters["Mode2"]
+
         try:
             self.iParamRefreshRate = int(Parameters["Mode3"])
         except ValueError:
             Domoticz.Error("Refresh rate parameter incorrect, set to its default value")
         self.bParamDisableCache = Parameters["Mode4"] == "True"
-        self.bParamReadOnly = Parameters["Mode5"] == "True"
+
+        self.bParamReadOnly = False
+        self.bParamAutoAdd = True
+        if "True" in Parameters["Mode5"]:
+            self.bParamReadOnly = True
+        if "NoAuto" in Parameters["Mode5"]:
+            self.bParamAutoAdd = False
+
         try:
             self.iParamDebug = int(Parameters["Mode6"])
         except ValueError:
@@ -689,6 +706,7 @@ class BasePlugin:
         Domoticz.Log("Registers set to " + self.sParamRegisters)
         Domoticz.Log("Disable cache set to " + str(self.bParamDisableCache))
         Domoticz.Log("Read-only set to " + str(self.bParamReadOnly))
+        Domoticz.Log("Auto add set to " + str(self.bParamAutoAdd))
         Domoticz.Log("Debug set to " + str(self.iParamDebug))
             
         # most init
@@ -939,17 +957,15 @@ class BasePlugin:
                     # check for timeouts
                     for sDeviceID, oDevice in Devices.items():
                         if not oDevice.TimedOut:
-                            bTimedOut = False                    
                             if sDeviceID in self.dUnitsByDeviceID:
                                 dUnit = self.dUnitsByDeviceID[sDeviceID]
                                 if (dUnit["fieldsvaluestimestamp"] + (3 * self.iParamRefreshRate)) < timeNow:
-                                    bTimedOut = True
+                                    Domoticz.Error("DeviceID " + oDevice.DeviceID + " not refreshed since a long time and timed out")
+                                    oDevice.TimedOut=1
                             else:
                                 if timeNow >= (self.iDiscoverStartTime + self.iDiscoverTime):
-                                    bTimedOut = True
-                            if bTimedOut:
-                                Domoticz.Error("DeviceID " + oDevice.DeviceID + " timed out")
-                                oDevice.TimedOut=1
+                                    Domoticz.Error("DeviceID " + oDevice.DeviceID + " not detected and timed out")
+                                    oDevice.TimedOut=1
                     # we still not have detected all registers given in configuration, retry JSON search
                     if self.bStillToLook or (timeNow >= (self.iRefreshFindDeviceTime + self.iRefreshFindDeviceRate)) :
                         self.findDevices()
@@ -1019,26 +1035,46 @@ def DumpConfigToLog():
             Domoticz.Debug("Device LastLevel: " + str(Devices[x].Units[y].LastLevel))
     return
 
-# give a type name based of unit (sFieldUnit: string), name (sFieldName: string) and type (sFieldType: string) of ebusd fielddefs
-def getFieldType(sFieldUnit, sFieldName, sFieldType):
+# give a type name based of unit, name, type and values for dFieldDefs (dict) of ebusd fielddefs
+def getFieldType(dFieldDefs):
+    sFieldUnit = dFieldDefs["unit"]
+    sFieldName = dFieldDefs["name"]
+    sFieldType = dFieldDefs["type"]
+
     if sFieldType == "IGN":
         return "ignore"
-    elif sFieldUnit == "°C":
+
+    if ("values" in dFieldDefs) and (len(dFieldDefs["values"]) == 2) :
+        counter = 0
+        for value in dFieldDefs["values"].values():
+            if value == "no" :
+                counter = counter + 1
+            if value == "yes" :
+                counter = counter + 2
+            if value == "off" :
+                counter = counter + 4
+            if value == "on" :
+                counter = counter + 8
+        if counter == 3:
+            return "switchyesno"
+        elif counter == 12:
+            return "switchonoff"
+
+    if sFieldUnit == "°C":
         return "temperature"
-    elif sFieldUnit == "bar":
+    if sFieldUnit == "bar":
         return "pressure"
-    elif sFieldUnit == "min":
+    if sFieldUnit == "%":
+        return "percentage"
+    if sFieldUnit == "min":
         return "number"
-    elif sFieldUnit == "h":
+    if sFieldUnit == "h":
         return "number"
-    elif sFieldUnit == "s":
+    if sFieldUnit == "s":
         return "number"
-    elif sFieldUnit != "":
+    if sFieldUnit != "":
         return "custom"
-    elif sFieldName == "onoff":
-        return "switchonoff"
-    elif sFieldName == "yesno":
-        return "switchyesno"
+
     return {
         "UCH": "number",
         "BCD": "number",

@@ -11,7 +11,7 @@ This is a hobby project, use it if you know what you are doing and at your own r
 Domoticz version must be at least 2024.1.
 
 You need to have [ebusd](https://github.com/john30/ebusd) daemon installed, maybe you can install a package directly from [releases](https://github.com/john30/ebusd/releases), and you need to install it with its [configuration files](https://github.com/john30/ebusd-configuration), accessible from network to Domoticz and obviously, a [hardware supported by ebusd](https://github.com/john30/ebusd/wiki/6.-Hardware).
-The plugin has been tested with ebusd versions 3.0.595c7c0 and 3.4 and a Vaillant ecoTEC plus VUI FR 306/5-5 R5 boiler with a calorMATIC VRC470f wireless remote control and VR61/4 underfloor heating system kit.
+The plugin has been tested with ebusd versions 3.0.595c7c0, 3.4 and 23.3 and a Vaillant ecoTEC plus VUI FR 306/5-5 R5 boiler with a calorMATIC VRC470f wireless remote control and VR61/4 underfloor heating system kit.
 Check first that ebusd is working properly with the following command directly on the device hosting ebusd:
 ```
 ebusctl find
@@ -148,7 +148,7 @@ Restart Domoticz.
 ## Configuration
 Add the ebusd-bridge hardware in Domoticz hardware configuration tab, giving the ebusd hosting device IP address or name, the telnet port, the HTTP JSON port, the registers, and set the refresh rate, read-only mode and debug mode. The refresh rate reads the registers values at the given rate in seconds.
 
-The registers parameter can be left empty. In that case, the plugin will create devices for every register. You can have a look to Setup / Log / Status tab the see created registers. However it is recommended to limit to useful registers. It is advised to create a first hardware with empty registers parameter, then to restart Domoticz, to look at devices created and to keep only useful registers by creating a new ebusd-bridge hardware with registers filled-in then to delete the first ebusd-bridge hardware.
+The registers parameter can be left empty. In that case, the plugin will create devices for every register if read-only parameter is set to one of the "add discovered devices" choices. You can have a look to Setup / Log / Status tab the see created registers. However it is recommended to limit to useful registers. It is advised to create a first hardware with empty registers parameter, then to restart Domoticz, to look at devices created and to keep only useful registers by creating a new ebusd-bridge hardware with registers filled-in then to delete the first ebusd-bridge hardware. You can also change the read-only parameter to one of the "don't add discovered devices" then delete useless devices.
 
 You can add many registers separated by space. Registers preceded with character `!` will be excluded. The register names have following convention:
 ```
