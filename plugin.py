@@ -1057,7 +1057,7 @@ def getFieldType(dFieldDefs):
     if sFieldUnit == "°C":
         return "temperature"
     if sFieldUnit == "bar":
-        return "pressure"      
+        return "pressure"
     if sFieldUnit == "%":
         return "percentage"
     if sFieldUnit == "1/min":
