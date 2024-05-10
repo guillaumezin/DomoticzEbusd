@@ -544,7 +544,7 @@ class BasePlugin:
                     self.myDebug("LevelNames for Domoticz are " + sLevelNames)
                     dOptions = {"LevelActions": sLevelActions, "LevelNames": sLevelNames, "LevelOffHidden": "true", "SelectorStyle": "1"}
                 # number type, probably to improve
-                elif (sFieldType == "number") or (sFieldType == "custom") or (sFieldType == "1/min") or (sFieldType == "hours"):
+                elif (sFieldType == "number") or (sFieldType == "custom") or (sFieldType == "hours"):
                     #sTypeName = "Custom"
                     iMainType = 0xF3
                     iSubType = 0x1F
@@ -569,6 +569,10 @@ class BasePlugin:
                     iMainType = 0xF3
                     iSubType = 0x09
                     bAlwaysRefresh = True
+                # fan type
+                elif (sFieldType == "1/min"):
+                    iMainType = 0xF3
+                    iSubType = 0x07
                 # percentage type
                 elif (sFieldType == "percentage"):
                     #sTypeName = "Percentage"
