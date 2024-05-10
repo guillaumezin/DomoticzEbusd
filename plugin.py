@@ -1057,7 +1057,7 @@ def getFieldType(dFieldDefs):
     if sFieldUnit == "°C":
         return "temperature"
     if sFieldUnit == "bar":
-        return "pressure"
+        return "pressure"      
     if sFieldUnit == "%":
         return "percentage"
     if sFieldUnit == "1/min":
@@ -1074,6 +1074,9 @@ def getFieldType(dFieldDefs):
     return {
         "BTI": "hours",
         "BDA": "hours",
+        "VTI": "hours",
+        "VTM": "hours",
+        "HDA:3": "hours",
         "UCH": "number",
         "BCD": "number",
         "BCD:2": "number",
