@@ -1065,15 +1065,15 @@ def getFieldType(dFieldDefs):
     if sFieldUnit == "h":
         return "hours"
     if sFieldUnit == "min":
-        return "number"
-    if sFieldUnit == "h":
-        return "number"
+        return "hours"
     if sFieldUnit == "s":
-        return "number"
+        return "hours"
     if sFieldUnit != "":
         return "custom"
 
     return {
+        "BTI": "hours",
+        "BDA": "hours",
         "UCH": "number",
         "BCD": "number",
         "BCD:2": "number",
