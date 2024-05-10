@@ -548,9 +548,7 @@ class BasePlugin:
                     #sTypeName = "Custom"
                     iMainType = 0xF3
                     iSubType = 0x1F
-                    if (sFieldType == "1/min"):
-                        iImage = 7
-                    elif (sFieldType == "hours"):
+                    if (sFieldType == "hours"):
                         iImage = 21
                     dOptions = { "Custom": "1;" + str(dFieldDefs["unit"])}
                 # setpoint type
