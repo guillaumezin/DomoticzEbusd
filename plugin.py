@@ -551,7 +551,7 @@ class BasePlugin:
                     self.myDebug("LevelNames for Domoticz are " + sLevelNames)
                     dOptions = {"LevelActions": sLevelActions, "LevelNames": sLevelNames, "LevelOffHidden": "true", "SelectorStyle": "1"}
                 # number type, probably to improve
-                elif (sFieldType == "number") or (sFieldType == "custom") or (sFieldType == "rpm") or (sFieldType == "timedate"):
+                elif (sFieldType == "number") or (sFieldType == "custom") or (sFieldType == "timedate"):
                     #sTypeName = "Custom"
                     iMainType = 0xF3
                     iSubType = 0x1F
@@ -1077,7 +1077,7 @@ def getFieldType(dFieldDefs):
             "%": "percentage",
             "1/min": "rpm",
             "h": "timedate",
-            "m": "timedate",
+            "min": "timedate",
             "s": "timedate",
             }.get(sFieldUnit, "custom")
 
