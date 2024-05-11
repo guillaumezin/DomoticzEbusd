@@ -210,6 +210,8 @@ class BasePlugin:
     iDiscoverTime = 300
     # integer: debug level
     iParamDebug = 0
+    # integer: version of Domoticz
+    iVersion = 0
     
     def __init__(self):
         self.bIsStarted = False
@@ -497,12 +499,12 @@ class BasePlugin:
 
                 #sTypeName = ""
                 iSwitchType = 0
-                iImage = 0
                 dValues = None
                 dOptions = {}
                 dOptionsMapping = {}
                 dReverseOptionsMapping = {}
                 bAlwaysRefresh = False
+                bCheckSwitchType02 = False
                 # now we try to get the best match between domoticz sensor and ebusd field type
                 # https://github.com/domoticz/domoticz/blob/master/hardware/hardwaretypes.h ligne 42
                 # https://github.com/domoticz/domoticz/blob/master/hardware/plugins/PythonObjects.cpp ligne 410
@@ -510,10 +512,15 @@ class BasePlugin:
                 # on/off type
                 #if (sFieldType == "switch") and bWritable:
                 if (sFieldType == "switchonoff") or (sFieldType == "switchyesno"):
+                    # if not bWritable:
+                    #     sTypeName = "Contact"
+                    # else:
+                    #     sTypeName = "Switch"
                     iMainType = 0xF4
                     iSubType = 0x49
                     if not bWritable:
                         iSwitchType = 2
+                    bCheckSwitchType02 = True
                     bHandleTimeout = True
                 # selector switch type
                 elif ("values" in dFieldDefs):
@@ -544,17 +551,14 @@ class BasePlugin:
                     self.myDebug("LevelNames for Domoticz are " + sLevelNames)
                     dOptions = {"LevelActions": sLevelActions, "LevelNames": sLevelNames, "LevelOffHidden": "true", "SelectorStyle": "1"}
                 # number type, probably to improve
-                elif (sFieldType == "number") or (sFieldType == "custom") or (sFieldType == "1/min") or (sFieldType == "hours"):
+                elif (sFieldType == "number") or (sFieldType == "custom") or (sFieldType == "rpm") or (sFieldType == "timedate"):
                     #sTypeName = "Custom"
                     iMainType = 0xF3
                     iSubType = 0x1F
-                    if (sFieldType == "1/min"):
-                        iImage = 7
-                    elif (sFieldType == "hours"):
-                        iImage = 21
                     dOptions = { "Custom": "1;" + str(dFieldDefs["unit"])}
                 # setpoint type
                 elif (sFieldType == "temperature") and bWritable:
+                    #sTypeName = "Setpoint"
                     iMainType = 0xF2
                     iSubType = 0x01
                 # read-only temperature type
@@ -569,9 +573,14 @@ class BasePlugin:
                     iMainType = 0xF3
                     iSubType = 0x09
                     bAlwaysRefresh = True
+                # fan type
+                elif (sFieldType == "rpm"):
+                    #sTypeName = "Fan"
+                    iMainType = 0xF3
+                    iSubType = 0x07
                 # percentage type
                 elif (sFieldType == "percentage"):
-                    #sTypeName = "Percentage"
+                    # sTypeName = "Percentage"
                     iMainType = 0xF3
                     iSubType = 0x06
                     bAlwaysRefresh = True
@@ -581,6 +590,10 @@ class BasePlugin:
                     iMainType = 0xF3
                     iSubType = 0x13
                     
+                iImage = 0
+                if (sFieldType == "timedate"):
+                    iImage = 21
+
                 # check if device is already in domoticz database, based on deviceid
                 bFound = False
                 bForceRefresh = False
@@ -593,18 +606,21 @@ class BasePlugin:
                     if sCurrentDeviceID.lower() == sDeviceIntegerID:
                         sDeviceIntegerID = sCurrentDeviceID
                         for iIndexUnit, oUnit in oDevice.Units.items():
-                            if (oUnit.Type != iMainType) or (oUnit.SubType != iSubType):
-                                Domoticz.Log("Device " + oUnit.Name + " type changed, updating Domoticz database")
-                                bForceRefresh = True
-                                oUnit.Type=iMainType
-                                oUnit.SubType=iSubType
-                                oUnit.SwitchType=iSwitchType
-                                oUnit.Image=iImage
-                                oUnit.Options=dOptions
-                                oUnit.Update(Log=False)
-                                oUnit.Parent.TimedOut=0
                             # log device found, with dFieldDefs["name"] and dFieldDefs["comment"] giving hints on how to use register
-                            Domoticz.Status("Device " + oUnit.Name + " unit " + str(iIndexUnit) + " and register " + sDeviceIntegerIDAndName + " detected" + sComment)
+                            Domoticz.Status("Device detected: " + oUnit.Name + " unit " + str(iIndexUnit) + " and register " + sDeviceIntegerIDAndName + sComment)
+                            if (oUnit.Type != iMainType) or (oUnit.SubType != iSubType) or (bCheckSwitchType02 and ((not bWritable and (iSwitchType == 0)) or (bWritable and (iSwitchType == 2)))):
+                                if (self.iVersion > 2024000004) :
+                                    Domoticz.Status("Device " + sDeviceIntegerID + " type changed, updating Domoticz database as type " + str(iMainType) + ", subtype " + str(iSubType) + " and switchtype " + str(iSwitchType))
+                                    bForceRefresh = True
+                                    oUnit.Type=iMainType
+                                    oUnit.SubType=iSubType
+                                    oUnit.SwitchType=iSwitchType
+                                    oUnit.Image=iImage
+                                    oUnit.Options=dOptions
+                                    oUnit.Update(Log=False, UpdateProperties=True, UpdateOptions=True)
+                                    oUnit.Parent.TimedOut=0
+                                else:
+                                    Domoticz.Error("Device " + sDeviceIntegerID + " type is incorrect, you should consider deleting it and restart the plugin")
                             # if found, continue loop to next item
                             bFound = True
                             break
@@ -688,8 +704,8 @@ class BasePlugin:
         if (matchVersions):
             iVersionMaj = int(matchVersions.group(1))
             iVersionMin = int(matchVersions.group(2))
-            iVersion = (iVersionMaj * 1000000) + iVersionMin
-            if iVersion < 2024000001:
+            self.iVersion = (iVersionMaj * 1000000) + iVersionMin
+            if self.iVersion < 2024000001:
                 Domoticz.Error("Your Domoticz version is too old for the plugin to work properly, you might observe unexpected behavior")
 
         Domoticz.Log("This plugin is compatible with Domoticz version 2024.1 onwards")
@@ -710,7 +726,7 @@ class BasePlugin:
         if self.iParamDebug > 1:
             Domoticz.Debugging(1)            
 
-        # set heartbeat interval	
+        # set heartbeat interval
         if self.iParamRefreshRate < self.iMaxHeartbeatInterval:
             Domoticz.Heartbeat(self.iParamRefreshRate)
         else:
@@ -1054,27 +1070,37 @@ def getFieldType(dFieldDefs):
         elif counter == 12:
             return "switchonoff"
 
-    if sFieldUnit == "°C":
-        return "temperature"
-    if sFieldUnit == "bar":
-        return "pressure"
-    if sFieldUnit == "%":
-        return "percentage"
-    if sFieldUnit == "1/min":
-        return "1/min"
-    if sFieldUnit == "h":
-        return "hours"
-    if sFieldUnit == "min":
-        return "number"
-    if sFieldUnit == "h":
-        return "number"
-    if sFieldUnit == "s":
-        return "number"
     if sFieldUnit != "":
-        return "custom"
+        return {
+            "°C": "temperature",
+            "bar": "pressure",
+            "%": "percentage",
+            "1/min": "rpm",
+            "h": "timedate",
+            "m": "timedate",
+            "s": "timedate",
+            }.get(sFieldUnit, "custom")
 
     return {
-        "UCH": "number",
+        "BDA": "timedate",
+        "BDA:3": "timedate",
+        "BDZ": "timedate",
+        "HDA": "timedate",
+        "HDA:3": "timedate",
+        "DAY": "timedate",
+        "DTM": "timedate",
+        "BTI": "timedate",
+        "HTI": "timedate",
+        "VTI": "timedate",
+        "BTM": "timedate",
+        "HTM": "timedate",
+        "VTM": "timedate",
+        "MIN": "timedate",
+        "TTM": "timedate",
+        "TTH": "timedate",
+        "TTQ": "timedate",
+        "BDY": "timedate",
+        "HDY": "timedate",
         "BCD": "number",
         "BCD:2": "number",
         "BCD:3": "number",
@@ -1114,6 +1140,7 @@ def getFieldType(dFieldDefs):
         "BI4": "number",
         "BI5": "number",
         "BI6": "number",
+        "BI7": "number",
         "TEM_P": "number"
         }.get(sFieldType, "text")
 
