@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="2.1.1" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="2.1.2" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default="" password="true"/> -->
@@ -551,7 +551,7 @@ class BasePlugin:
                     self.myDebug("LevelNames for Domoticz are " + sLevelNames)
                     dOptions = {"LevelActions": sLevelActions, "LevelNames": sLevelNames, "LevelOffHidden": "true", "SelectorStyle": "1"}
                 # number type, probably to improve
-                elif (sFieldType == "number") or (sFieldType == "custom") or (sFieldType == "timedate"):
+                elif (sFieldType == "number") or (sFieldType == "custom") or (sFieldType == "time"):
                     #sTypeName = "Custom"
                     iMainType = 0xF3
                     iSubType = 0x1F
@@ -584,14 +584,14 @@ class BasePlugin:
                     iMainType = 0xF3
                     iSubType = 0x06
                     bAlwaysRefresh = True
-                # else text type
+                # else text type (including for timedate)
                 else:
                     #sTypeName = "Text"
                     iMainType = 0xF3
                     iSubType = 0x13
                     
                 iImage = 0
-                if (sFieldType == "timedate"):
+                if (sFieldType == "timedate") or (sFieldType == "time"):
                     iImage = 21
 
                 # check if device is already in domoticz database, based on deviceid
@@ -1076,9 +1076,9 @@ def getFieldType(dFieldDefs):
             "bar": "pressure",
             "%": "percentage",
             "1/min": "rpm",
-            "h": "timedate",
-            "min": "timedate",
-            "s": "timedate",
+            "h": "time",
+            "min": "time",
+            "s": "time",
             }.get(sFieldUnit, "custom")
 
     return {
