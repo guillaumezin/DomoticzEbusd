@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="2.1.2" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="2.1.3" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default="" password="true"/> -->
@@ -806,7 +806,7 @@ class BasePlugin:
         # if started and not stopping
         if self.bIsStarted:
             # add write to the queue
-            self.write(DeviceID, Command, Level, "")
+            self.write(DeviceID, Unit, Command, Level, "")
 
     def onDeviceModified(self, DeviceID, Unit):
         Domoticz.Debug("onDeviceModified called for device " + str(DeviceID) + " unit " + str(Unit))
