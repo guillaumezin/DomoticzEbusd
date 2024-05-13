@@ -641,8 +641,12 @@ class BasePlugin:
                         self.myDebug("Found " + sDeviceIntegerIDAndName + sComment + " but not adding it because auto add is disabled")
                         continue
                         
+                    bUsed = 1
+                    if len(lUnitsSearch) == 0 :
+                        bUsed = 0
+
                     # create device, log dFieldDefs["name"] and dFieldDefs["comment"] giving hints on how to use register
-                    Domoticz.Unit(Name=sCompleteName, Unit=iIndexUnit, Type=iMainType, Subtype=iSubType, Switchtype=iSwitchType, Image=iImage, Description=dFieldDefs["comment"], Options=dOptions, Used=1, DeviceID=sDeviceIntegerID).Create()
+                    Domoticz.Unit(Name=sCompleteName, Unit=iIndexUnit, Type=iMainType, Subtype=iSubType, Switchtype=iSwitchType, Image=iImage, Description=dFieldDefs["comment"], Options=dOptions, Used=bUsed, DeviceID=sDeviceIntegerID).Create()
                     if (sDeviceIntegerID in Devices) and (iIndexUnit in Devices[sDeviceIntegerID].Units):
                         Domoticz.Status("Add register " + sDeviceIntegerIDAndName + " unit " + str(iIndexUnit) + " as type " + str(iMainType) + ", subtype " + str(iSubType) + " and switchtype " + str(iSwitchType) + sComment)
                     else:
