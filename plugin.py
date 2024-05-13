@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="2.1.3" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="2.1.4" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default="" password="true"/> -->
@@ -641,9 +641,11 @@ class BasePlugin:
                         self.myDebug("Found " + sDeviceIntegerIDAndName + sComment + " but not adding it because auto add is disabled")
                         continue
                         
-                    bUsed = 1
+                    # if the user didn't specify a filter, we will add every devices, but don't include all to prevent cluttering the GUI, keep them not used in devices list
                     if len(lUnitsSearch) == 0 :
                         bUsed = 0
+                    else:
+                        bUsed = 1
 
                     # create device, log dFieldDefs["name"] and dFieldDefs["comment"] giving hints on how to use register
                     Domoticz.Unit(Name=sCompleteName, Unit=iIndexUnit, Type=iMainType, Subtype=iSubType, Switchtype=iSwitchType, Image=iImage, Description=dFieldDefs["comment"], Options=dOptions, Used=bUsed, DeviceID=sDeviceIntegerID).Create()
