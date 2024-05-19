@@ -148,7 +148,7 @@ Restart Domoticz.
 ## Configuration
 Add the ebusd-bridge hardware in Domoticz hardware configuration tab, giving the ebusd hosting device IP address or name, the telnet port, the HTTP JSON port, the registers, and set the refresh rate, read-only mode and debug mode. The refresh rate reads the registers values at the given rate in seconds.
 
-The registers parameter can be left empty. In that case, the plugin will create devices for every register if read-only parameter is set to one of the "add discovered devices" choices and they will be added to Setup / Devices as Unused, you will have to set the devices you're interested into as Used. You can have a look to Setup / Log / Status tab the see created registers. However it is recommended to limit to useful registers. It is advised to create a first hardware with empty registers parameter, then to restart Domoticz, to look at devices created and to keep only useful registers by creating a new ebusd-bridge hardware with registers filled-in then to delete the first ebusd-bridge hardware. You can also change the read-only parameter to one of the "don't add discovered devices" then delete useless devices.
+The registers parameter can be left empty. In that case, the plugin will create devices for every register if read-only parameter is set to one of the "add discovered devices" choices and they will be added to Setup / Devices as unused, you will have to set the devices you're interested into as used. You can have a look to Setup / Log / Status tab the see created registers. However it is recommended to limit to useful registers. It is advised to create a first hardware with empty registers parameter, then to restart Domoticz, to look at devices created and to keep only useful registers by creating a new ebusd-bridge hardware with registers filled-in then to delete the first ebusd-bridge hardware. You can also change the read-only parameter to one of the "don't add discovered devices" then delete useless devices.
 
 You can add many registers separated by space. Registers preceded with character `!` will be excluded. The register names have following convention:
 ```
@@ -160,12 +160,12 @@ This is case insensitive. If you specify filters, corresponding devices will be 
 For instance `bai:SetMode:2` in my case gives `hwctempdesired` fielddefs value, i.e. the desired hot water temperature, because it is the second field of bai->messages->SetMode register. It could have been configured with `bai:SetMode:hwctempdesired` directly. Fielddefs type "IGN" are ignored for index counting and name searching. For instance `bai:SetMode:4` give the same result as `bai:SetMode:disablehc`. 
 
 The search is based on [Python regular expression](https://docs.python.org/3/library/re.html), meaning for instance that:
-* `flow` will match all registers containing `flow` in any position of the complete register name (all fields of `mc:Flow1Sensor:`, `mc:FlowTempDesired:`, `bai:FlowTemp:` and `bai:FlowTempDesired` plus `bai:SetMode:hwcflowtempdesired`)
-* `broadcast:outsidetemp:` will match all fields of message `outsidetemp` of circuit `broadcast` (`broadcast:outsidetemp:`)
+* `flow` will match all registers containing `flow` in any position of the complete register name (all fields of `mc:Flow1Sensor:`, `mc:FlowTempDesired:`, `bai:FlowTemp:`, `bai:FlowTempDesired` plus `bai:SetMode:hwcflowtempdesired`
+* `broadcast:outsidetemp:` will match all fields of message `outsidetemp` of circuit `broadcast`
 * `^f47:hc` will match all fields of all message names beginning with `hc` of circuit `f47` (all fields of `f47:Hc1OPMode:`, `f47:Hc1SFMode:` and `f47:Hc2SFMode:`)
 * `^f47:.*temp.*` will match all fields of all message names containing temp for circuit `f47` (`f47:RoomTemp:`)
 * `:.*period:` will match every messages ending with `period` (all fields of `f47:Hc1HolidayStartPeriod:`, `f47:Hc1HolidayEndPeriod:`, `f47:Hc2HolidayStartPeriod:`, `f47:Hc2HolidayEndPeriod:`)
-* `:hwcflowtempdesired$` will match all registers with a field named `hwcflowtempdesired` (bai:SetMode:hwcflowtempdesired)
+* `:hwcflowtempdesired$` will match all registers with a field named `hwcflowtempdesired` (`bai:SetMode:hwcflowtempdesired`)
 * `!:sensor$` will exclude all registers with a field named `sensor`
 
 You can add more than one ebusd-bridge hardware to Domoticz, for instance to get some registers as read-only and others as writable.
