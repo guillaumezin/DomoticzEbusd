@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="2.1.7" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="2.1.8" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default="" password="true"/> -->
@@ -709,7 +709,7 @@ class BasePlugin:
         except ValueError:
             Domoticz.Error("Debug level parameter incorrect, set to its default value")
 
-        matchVersions = re.search(r"(\d+)\.(\d+) \(build (\d+)\)", Parameters["DomoticzVersion"])
+        matchVersions = re.search(r"(\d+).*?(\d+).*?(\d+)", Parameters["DomoticzVersion"])
         if (matchVersions):
             iVersionMaj = int(matchVersions.group(1))
             iVersionMin = int(matchVersions.group(2))
