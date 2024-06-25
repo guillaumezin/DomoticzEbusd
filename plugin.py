@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="2.1.6" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="2.1.7" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default="" password="true"/> -->
@@ -212,6 +212,8 @@ class BasePlugin:
     iParamDebug = 0
     # integer: version of Domoticz
     iVersion = 0
+    # integer build of Domoticz
+    iBuild = 0
     
     def __init__(self):
         self.bIsStarted = False
@@ -610,7 +612,7 @@ class BasePlugin:
                             # log device found, with dFieldDefs["name"] and dFieldDefs["comment"] giving hints on how to use register
                             Domoticz.Status("Device detected: " + oUnit.Name + " unit " + str(iIndexUnit) + " and register " + sDeviceIntegerIDAndName + sComment)
                             if (oUnit.Type != iMainType) or (oUnit.SubType != iSubType) or (bCheckSwitchType02 and ((not bWritable and (iSwitchType == 0)) or (bWritable and (iSwitchType == 2)))):
-                                if (self.iVersion > 2024000004) :
+                                if (self.iBuild >= 16100) :
                                     Domoticz.Status("Device " + sDeviceIntegerID + " type changed, updating Domoticz database as type " + str(iMainType) + ", subtype " + str(iSubType) + " and switchtype " + str(iSwitchType))
                                     bForceRefresh = True
                                     oUnit.Type=iMainType
@@ -707,10 +709,11 @@ class BasePlugin:
         except ValueError:
             Domoticz.Error("Debug level parameter incorrect, set to its default value")
 
-        matchVersions = re.search(r"(\d+)\.(\d+)", Parameters["DomoticzVersion"])
+        matchVersions = re.search(r"(\d+)\.(\d+) \(build (\d+)\)", Parameters["DomoticzVersion"])
         if (matchVersions):
             iVersionMaj = int(matchVersions.group(1))
             iVersionMin = int(matchVersions.group(2))
+            self.iBuild = int(matchVersions.group(3))
             self.iVersion = (iVersionMaj * 1000000) + iVersionMin
             if self.iVersion < 2024000001:
                 Domoticz.Error("Your Domoticz version is too old for the plugin to work properly, you might observe unexpected behavior")
