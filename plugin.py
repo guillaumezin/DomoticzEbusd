@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="2.1.8" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="2.1.9" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default="" password="true"/> -->
@@ -75,7 +75,7 @@ class CaseInsensitiveDict(MutableMapping):
     value of a ``'Content-Encoding'`` response header, regardless
     of how the header name was originally stored.
     If the constructor, ``.update``, or equality comparison
-    operations are given keys that have equal ``.lower()``s, the
+    operations are given keys that have equal ``.casefold()``s, the
     behavior is undefined.
     """
 
@@ -87,7 +87,7 @@ class CaseInsensitiveDict(MutableMapping):
         
     # lower and remove substring between []
     def __lowerAndFilter(self, key):
-        return re.sub(r'\[.+?\]', '', key).lower()
+        return re.sub(r'\[.+?\]', '', key).casefold()
 
     def __setitem__(self, key, value):
         # Use the lowercased key for lookups, but store the actual
@@ -281,8 +281,8 @@ class BasePlugin:
                 # Split received fields by ;
                 sFields = lParams[2].split(";")
                 lFieldsValues = []
-                sCircuit = lParams[0].lower()
-                sMessage = lParams[1].lower()
+                sCircuit = lParams[0].casefold()
+                sMessage = lParams[1].casefold()
                 # Look for corresponding circuit and register
                 if (sCircuit in self.dUnits3D) and (sMessage in self.dUnits3D[sCircuit]):
                     # Extract read fields
@@ -363,7 +363,7 @@ class BasePlugin:
         if iCount:
             self.dMessages = {}
             for sCircuit, dItem in dJson.items():
-                sCircuit = sCircuit.lower()
+                sCircuit = sCircuit.casefold()
                 if sCircuit == "global":
                     continue
                 if sCircuit.startswith("scan."):
@@ -373,7 +373,7 @@ class BasePlugin:
                     for sMessage, dMessageItem in dItem["messages"].items():                                                         
                         # self.myDebug("Exploring message " + sMessage)
                         if ("name" in dMessageItem) and dMessageItem["name"] and ("fielddefs" in dMessageItem) and (len(dMessageItem["fielddefs"]) > 0):
-                            sMessage = sMessage.lower()
+                            sMessage = sMessage.casefold()
                             sMessage = re.sub(r'\[.*\]', '', sMessage)
                             if sMessage.endswith("-w"):
                                 continue
@@ -388,7 +388,7 @@ class BasePlugin:
                                     iFieldsCount += 1
                                     if "name" in dAllFieldDefs and dAllFieldDefs["name"] :
                                         self.myDebug("Add " + sCircuit+":"+sMessage+":"+dAllFieldDefs["name"] + " to messages list by field name")
-                                        self.dMessages[sCircuit+":"+sMessage+":"+dAllFieldDefs["name"].lower()] = dMessageItem
+                                        self.dMessages[sCircuit+":"+sMessage+":"+dAllFieldDefs["name"].casefold()] = dMessageItem
                                         
         timeNow = time.time()
         
@@ -446,14 +446,14 @@ class BasePlugin:
                         if sAllFieldType != "ignore":
                             if iFieldIndex == iFieldsCount:
                                 iFieldAbsoluteIndex = iAllFieldsIndex                                    
-                                sFieldName = dAllFieldDefs["name"].lower()
+                                sFieldName = dAllFieldDefs["name"].casefold()
                                 break
                             iFieldsCount += 1
                 else:
                     for iAllFieldsIndex, dAllFieldDefs in enumerate(dMessage["fielddefs"]):
                         sAllFieldType = getFieldType(dAllFieldDefs)
                         if sAllFieldType != "ignore":
-                            if dAllFieldDefs["name"].lower() == sFieldIndex:
+                            if dAllFieldDefs["name"].casefold() == sFieldIndex:
                                 iFieldIndex = iFieldsCount
                                 sFieldName = sFieldIndex
                                 iFieldAbsoluteIndex = iAllFieldsIndex                                    
@@ -605,8 +605,8 @@ class BasePlugin:
                 else:
                     sComment = ""
                 for sCurrentDeviceID, oDevice in Devices.items():
-                    # .lower() for backward compatibility
-                    if sCurrentDeviceID.lower() == sDeviceIntegerID:
+                    # .casefold() for backward compatibility
+                    if sCurrentDeviceID.casefold() == sDeviceIntegerID:
                         sDeviceIntegerID = sCurrentDeviceID
                         for iIndexUnit, oUnit in oDevice.Units.items():
                             # log device found, with dFieldDefs["name"] and dFieldDefs["comment"] giving hints on how to use register
@@ -1156,7 +1156,7 @@ def getFieldType(dFieldDefs):
 
 # convert domoticz sCommand (string) and ifValue (integer of float) or sValue (string) to string value for ebusd, for dUnit (dictionnary)
 def valueDomoticzToEbusd(dUnit, sCommand, ifValue, sValue, previousIValue, previousSValue):
-    sLowerCommand = sCommand.lower()
+    sLowerCommand = sCommand.casefold()
     dReverseOptionsMapping = dUnit["reverseoptions"]
     if len(dReverseOptionsMapping) > 0:
         if ifValue in dReverseOptionsMapping:
@@ -1217,7 +1217,7 @@ def valueEbusdToDomoticz(dUnit, sFieldValue):
                 iValue = 0
             sValue = sFieldValue
     else:
-        sLowerFieldValue = sFieldValue.lower()
+        sLowerFieldValue = sFieldValue.casefold()
         if (sLowerFieldValue == "on") or (sLowerFieldValue == "yes"):
             iValue = 1
             sValue = "100"
