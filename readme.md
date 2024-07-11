@@ -34,13 +34,13 @@ iptables -A INPUT -p tcp ! -s 192.168.0.11 --dport 8888 -j DROP
 
 Change IP address to Domoticz hosting device IP address, change port to your telnet port number if different. 
 
-For the plugin to work, ebusd must be started with HTTP JSON --httpport option, for instance on port 8889. I had to change my "/etc/default/ebusd" after installing the .deb package for raspberry pi:
+For the plugin to work, ebusd must be started with HTTP JSON --httpport option, for instance on port 8889. I advise to disable update check too. I had to change my "/etc/default/ebusd" after installing the .deb package for raspberry pi:
 ```
 # /etc/default/ebusd:
 # config file for ebusd service.
 
 # Options to pass to ebusd (run "ebusd -?" for more info):
-EBUSD_OPTS="--scanconfig --httpport 8889"
+EBUSD_OPTS="--scanconfig --httpport 8889 --updatecheck=off"
 ```
 
 Then restart the daemon:
@@ -290,7 +290,8 @@ services:
             - EBUSD_DEVICE=/dev/ttyUSB0
             - EBUSD_CONFIGLANG=en
             - EBUSD_LOG=all error
-            - EBUSD_HTTPORT=8889
+            - EBUSD_HTTPORT=8889            
+            - EBUSD_UPDATECHECK=off
         image: john30/ebusd
         networks:
             - ebusd
@@ -320,6 +321,7 @@ version: '3'
         - EBUSD_CONFIGLANG=en
         - EBUSD_LOG=all error
         - EBUSD_HTTPPORT=8889
+        - EBUSD_UPDATECHECK=off
     image: john30/ebusd
     networks:
         - domoticz
