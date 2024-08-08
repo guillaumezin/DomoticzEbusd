@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="2.2.1" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="2.2.2" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default="" password="true"/> -->
@@ -1229,7 +1229,14 @@ def valueEbusdToDomoticz(dUnit, sFieldValue):
                 iValue = int(sFieldValue)
             except ValueError:
                 iValue = 0
-            sValue = sFieldValue
+            # round temperature by 1 digit
+            if dUnit["fieldtype"] == "temperature":
+                try:
+                    sValue = str(round(float(sFieldValue),1))
+                except ValueError:
+                    sValue = sFieldValue
+            else:
+                sValue = sFieldValue
 
     # prevent overflow when translating to C language
     if iValue >= 2147483647:
