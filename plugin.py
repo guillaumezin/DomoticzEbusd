@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="2.2.2" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="2.2.3" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default="" password="true"/> -->
@@ -537,7 +537,7 @@ class BasePlugin:
                         iSubType = 0x13
                     dValues = dFieldDefs["values"]
                     sLevelActions = "|"
-                    sLevelNames = "|"
+                    sLevelNames = "donotuse|"
                     # Sort by key, then enumerate tuple
                     for iIndexValue, (sIndexInJson, sValue) in enumerate(sorted(dValues.items())):
                         if iIndexValue > 0:
