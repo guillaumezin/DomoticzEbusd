@@ -190,7 +190,7 @@ return {
 	            domoticz.devices("ebusd bridge - f47:hc1holidayendperiod - date").update(0, "01.01.2090").afterSec(3)
 	            domoticz.devices("ebusd bridge - f47:hc2holidayendperiod - date").update(0, "01.01.2090").afterSec(4)
 	        else
-	            local yesterdayDate = domoticz.time.timestampToDate(domoticz.dDate, "dd.mm.yyyy").addDays(-1)
+	            local yesterdayDate = domoticz.time.timestampToDate(domoticz.time.dDate - (24*60*60), "dd.mm.yyyy")
 	            domoticz.devices("ebusd bridge - f47:hc1holidaystartperiod - date").update(0, yesterdayDate).afterSec(1)
 	            domoticz.devices("ebusd bridge - f47:hc2holidaystartperiod - date").update(0, yesterdayDate).afterSec(2)
 	            domoticz.devices("ebusd bridge - f47:hc1holidayendperiod - date").update(0, yesterdayDate).afterSec(3)

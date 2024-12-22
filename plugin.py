@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="2.2.3" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="2.2.4" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default="" password="true"/> -->
@@ -824,7 +824,12 @@ class BasePlugin:
 
     def onDeviceModified(self, DeviceID, Unit):
         Domoticz.Debug("onDeviceModified called for device " + str(DeviceID) + " unit " + str(Unit))
-
+        # if started and not stopping
+        if self.bIsStarted:
+            # add write to the queue, only for text, onCommand will be called for other types
+            if ((Devices[DeviceID].Units[Unit].Type == 0xF3) and (Devices[DeviceID].Units[Unit].SubType == 0x13)) :
+                self.write(DeviceID, Unit, "udevice", Devices[DeviceID].Units[Unit].nValue, Devices[DeviceID].Units[Unit].sValue)
+            
     def onNotification(self, Name, Subject, Text, Status, Priority, Sound, ImageFile):
         Domoticz.Debug("onNotification called: " + Name + "," + Subject + "," + Text + "," + Status + "," + str(Priority) + "," + Sound + "," + ImageFile)
 
