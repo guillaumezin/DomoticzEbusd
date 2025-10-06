@@ -170,6 +170,8 @@ class BasePlugin:
     sRegExSearch = None
     # regex to exclude message
     sRegExExclude = None
+    # regex filled
+    bRegExFilled = False
     # dictionnary of messages extracted from json, structured as keys wih circuit:message and circuit:message:fieldindex and pointing to json iFieldElement
     dMessages = None
     # dictionnary of dictonnaries, keyed by deviceid string (circuit:register:fieldindex, for instance "f47:OutsideTemp:0")
@@ -222,6 +224,7 @@ class BasePlugin:
         self.jsonConn = None
         self.sRegExSearch = None
         self.sRegExExclude = None
+        self.bRegExFilled = False
         self.dMessages = {}
         self.dUnitsByDeviceID = {}
         self.dUnits3D = {}
@@ -392,9 +395,10 @@ class BasePlugin:
                                         
         timeNow = time.time()
         
-        lUnitsSearch = []
-        if not self.sRegExSearch:
+        if not bRegExFilled:
+            bRegExFilled = True
             lUnits = shlex.split(self.sParamRegisters.strip())
+            lUnitsSearch = []
             lUnitsExclude = []
             for sUnit in lUnits:
                 if sUnit.startswith("!"):
@@ -645,7 +649,7 @@ class BasePlugin:
                         continue
                         
                     # if the user didn't specify a filter, we will add every devices, but don't include all to prevent cluttering the GUI, keep them not used in devices list
-                    if len(lUnitsSearch) == 0 :
+                    if (not self.sRegExSearch) and (not self.sRegExExclude) :
                         iUsed = 0
                     else:
                         iUsed = 1
