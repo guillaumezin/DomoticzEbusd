@@ -395,8 +395,8 @@ class BasePlugin:
                                         
         timeNow = time.time()
         
-        if not bRegExFilled:
-            bRegExFilled = True
+        if not self.bRegExFilled:
+            self.bRegExFilled = True
             lUnits = shlex.split(self.sParamRegisters.strip())
             lUnitsSearch = []
             lUnitsExclude = []
