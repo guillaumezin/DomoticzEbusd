@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="2.2.4" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="2.2.5" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default="" password="true"/> -->
@@ -392,9 +392,9 @@ class BasePlugin:
                                         
         timeNow = time.time()
         
+        lUnitsSearch = []
         if not self.sRegExSearch:
             lUnits = shlex.split(self.sParamRegisters.strip())
-            lUnitsSearch = []
             lUnitsExclude = []
             for sUnit in lUnits:
                 if sUnit.startswith("!"):
