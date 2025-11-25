@@ -4,7 +4,7 @@
 #           MIT license
 #
 """
-<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="2.2.5" externallink="https://github.com/guillaumezin/DomoticzEbusd">
+<plugin key="ebusd" name="ebusd bridge" author="Barberousse" version="2.2.6" externallink="https://github.com/guillaumezin/DomoticzEbusd">
     <params>
         <!-- <param field="Username" label="Username (left empty if authentication not needed)" width="200px" required="false" default=""/>
         <param field="Password" label="Password" width="200px" required="false" default="" password="true"/> -->
@@ -507,6 +507,7 @@ class BasePlugin:
                 iSwitchType = 0
                 dValues = None
                 dOptions = {}
+                dOptionsCheck = {}
                 dOptionsMapping = {}
                 dReverseOptionsMapping = {}
                 bAlwaysRefresh = False
@@ -540,11 +541,11 @@ class BasePlugin:
                         iMainType = 0xF3
                         iSubType = 0x13
                     dValues = dFieldDefs["values"]
-                    sLevelActions = "|"
-                    sLevelNames = "donotuse|"
+                    sLevelActions = ""
+                    sLevelNames = "donotuse"
                     # Sort by key, then enumerate tuple
                     for iIndexValue, (sIndexInJson, sValue) in enumerate(sorted(dValues.items())):
-                        if iIndexValue > 0:
+                        if sLevelNames:
                             sLevelActions += "|"
                             sLevelNames += "|"
                         sLevelNames += str(sValue)
@@ -556,13 +557,16 @@ class BasePlugin:
                             dOptionsMapping[sValue] = sValue
                         dReverseOptionsMapping[iIndexValue] = sValue
                     self.myDebug("LevelNames for Domoticz are " + sLevelNames)
-                    dOptions = {"LevelActions": sLevelActions, "LevelNames": sLevelNames, "LevelOffHidden": "true", "SelectorStyle": "1"}
+                    dOptionsCheck = {"LevelActions": sLevelActions, "LevelNames": sLevelNames, "LevelOffHidden": "true"}
+                    dOptions.update(dOptionsCheck)
+                    dOptions["SelectorStyle"] = "1"
                 # number type, probably to improve
                 elif (sFieldType == "number") or (sFieldType == "custom") or (sFieldType == "time"):
                     #sTypeName = "Custom"
                     iMainType = 0xF3
                     iSubType = 0x1F
-                    dOptions = { "Custom": "1;" + str(dFieldDefs["unit"])}
+                    dOptionsCheck = { "Custom": "1;" + str(dFieldDefs["unit"])}
+                    dOptions.update(dOptionsCheck)
                 # setpoint type
                 elif (sFieldType == "temperature") and bWritable:
                     #sTypeName = "Setpoint"
@@ -615,19 +619,28 @@ class BasePlugin:
                         for iIndexUnit, oUnit in oDevice.Units.items():
                             # log device found, with dFieldDefs["name"] and dFieldDefs["comment"] giving hints on how to use register
                             Domoticz.Status("Device detected: " + oUnit.Name + " unit " + str(iIndexUnit) + " and register " + sDeviceIntegerIDAndName + sComment)
-                            if (oUnit.Type != iMainType) or (oUnit.SubType != iSubType) or (bCheckSwitchType02 and ((not bWritable and (iSwitchType == 0)) or (bWritable and (iSwitchType == 2)))):
+                            bOptionsModified = False
+                            if dOptionsCheck:
+                                if not isinstance(oUnit.Options, dict):
+                                    oUnit.Options = dOptions.copy()
+                                    bOptionsModified = True
+                                else:
+                                    for key in dOptionsCheck:
+                                        if oUnit.Options.get(key) != dOptionsCheck[key]:
+                                            oUnit.Options[key] = dOptionsCheck[key]
+                                            bOptionsModified = True
+                            if bOptionsModified or (oUnit.Type != iMainType) or (oUnit.SubType != iSubType) or (bCheckSwitchType02 and ((not bWritable and (iSwitchType == 0)) or (bWritable and (iSwitchType == 2)))):
                                 if (self.iBuild >= 16100) or (self.iVersion > 2024000004) :
-                                    Domoticz.Status("Device " + sDeviceIntegerID + " type changed, updating Domoticz database as type " + str(iMainType) + ", subtype " + str(iSubType) + " and switchtype " + str(iSwitchType))
+                                    Domoticz.Status("Device " + sDeviceIntegerID + " type or options changed, updating Domoticz database as type " + str(iMainType) + ", subtype " + str(iSubType) + " and switchtype " + str(iSwitchType))
                                     bForceRefresh = True
                                     oUnit.Type=iMainType
                                     oUnit.SubType=iSubType
                                     oUnit.SwitchType=iSwitchType
                                     oUnit.Image=iImage
-                                    oUnit.Options=dOptions
                                     oUnit.Update(Log=False, UpdateProperties=True, UpdateOptions=True)
                                     oUnit.Parent.TimedOut=0
                                 else:
-                                    Domoticz.Error("Device " + sDeviceIntegerID + " type is incorrect, you should consider deleting it and restart the plugin")
+                                    Domoticz.Error("Device " + sDeviceIntegerID + " type or options are incorrect, you should consider deleting it and restart the plugin")
                             # if found, continue loop to next item
                             bFound = True
                             break
