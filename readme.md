@@ -1,3 +1,11 @@
+# ⚠️ IMPORTANT / IMPORTANT
+
+> 🇫🇷 **Je n’utilise plus Domoticz et ce projet n’est probablement plus maintenu.**  
+> Je risque donc d’être très peu réactif aux demandes de support et de ne plus proposer de mises à jour.
+>
+> 🇬🇧 **I no longer use Domoticz and this project is likely unmaintained.**  
+> As a result, I may be very slow to respond to support requests and may no longer provide updates.
+
 # ebusd plugin for Domoticz
 
 This is a plugin for [Domoticz](https://domoticz.com), for Domoticz to communicate directly with [ebusd](https://github.com/john30/ebusd) daemon. Ebus is a protocol to communicate mainly with Vaillant and Saunier-Duval boilers.
